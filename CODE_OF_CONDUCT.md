@@ -1,9 +1,9 @@
-# Project Golem Code of Conduct
+# LifeGrid Code of Conduct
 
 ## Our Pledge
 
 In the interest of fostering an open and welcoming environment, we as
-contributors and maintainers pledge to make participation in the Project Golem
+contributors and maintainers pledge to make participation in the LifeGrid
 project a harassment-free experience for everyone, regardless of age, body
 size, disability, ethnicity, sex characteristics, gender identity and
 expression, level of experience, education, socio-economic status, nationality,
@@ -59,7 +59,7 @@ representative at an online or offline event.
 
 ## Learning and Exploration Context
 
-Project Golem is designed to help people explore cellular automata and
+LifeGrid is designed to help people explore cellular automata and
 simulation concepts. We place special emphasis on:
 
 * Creating a welcoming environment for experimentation and curiosity
@@ -146,5 +146,5 @@ For questions or concerns about this Code of Conduct, please contact:
 **James Temple**
 Honey Badger Universe
 Email: james@honey-badger.org
-Project: Project Golem
-GitHub: https://github.com/James-HoneyBadger/Project_Golem
+Project: LifeGrid
+GitHub: https://github.com/James-HoneyBadger/LifeGrid

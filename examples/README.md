@@ -1,6 +1,6 @@
 # Example Patterns
 
-This directory contains example pattern files that can be loaded into the Cellular Automaton Simulator.
+This directory contains example pattern files that can be loaded into LifeGrid.
 
 ## How to Use
 
