@@ -1,168 +1,124 @@
 # Contributing to LifeGrid
 
-Thanks for contributing. LifeGrid is now a dual-platform project with:
-
-- `lifegrid-rs` (Rust native desktop)
-- `lifegrid-ts` (TypeScript web)
-
-Please keep changes scoped, tested, and documented.
+Thanks for your interest in contributing! This guide covers setup, workflow, and standards.
 
 ---
 
-## Prerequisites
-
-### Rust stack (`lifegrid-rs`)
-
-- Rust 1.75+ via [rustup](https://rustup.rs)
-- A C toolchain/linker (`clang` or `gcc`)
-- Desktop display server (macOS, X11, Wayland)
-
-### TypeScript stack (`lifegrid-ts`)
-
-- Node.js 18+
-- npm 9+
-
----
-
-## Local Setup
-
-Clone and prepare both apps:
+## Development Setup
 
 ```bash
 git clone https://github.com/James-HoneyBadger/LifeGrid.git
 cd LifeGrid
-
-# Rust app
-cd lifegrid-rs
-cargo build
-
-# TypeScript app
-cd ../lifegrid-ts
-npm install
-npm run build
+make install-dev
 ```
 
-Run apps:
+This installs all dependencies (runtime, dev, docs, export) in editable mode.
 
-```bash
-# Rust desktop
-cd lifegrid-rs
-cargo run
+### Prerequisites
 
-# TypeScript web
-cd ../lifegrid-ts
-npm run dev
-```
+- Python 3.11+
+- Tcl/Tk
+- Git
 
 ---
 
-## Pull Request Workflow
+## Workflow
 
-1. Fork and clone.
-2. Create a feature branch from `master`.
-3. Make focused commits.
-4. Run relevant checks (see below).
-5. Update docs when behavior changes.
-6. Open PR against `master`.
+1. **Fork and clone** the repository.
+2. **Create a branch** from `master`:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+3. **Make your changes** — keep commits focused and well-described.
+4. **Run the checks** before submitting:
+   ```bash
+   make lint       # flake8 + pylint
+   make typecheck  # mypy
+   make test       # pytest (71 tests)
+   ```
+5. **Open a pull request** against `master`.
 
 ---
 
-## Required Checks
+## Code Standards
 
-### Rust changes
+- **Style**: PEP 8. Use `make format` (black + isort) to auto-format.
+- **Type hints**: All public functions and methods should have type annotations. Run `make typecheck` to verify.
+- **Linting**: Zero warnings from `flake8` and zero errors from `pylint --errors-only`.
+- **Tests**: New features should include tests in `tests/`. Run `make test`.
+- **Docstrings**: Use Google-style docstrings for public APIs.
 
-```bash
-cd lifegrid-rs
-cargo build
-cargo test
-cargo clippy
-cargo fmt --check
+---
+
+## Adding An Automaton Mode
+
+### As a plugin (recommended)
+
+Create a `.py` file in `plugins/` that subclasses `AutomatonPlugin`:
+
+```python
+from src.plugin_system import AutomatonPlugin
+from src.automata.base import CellularAutomaton
+
+class MyPlugin(AutomatonPlugin):
+    @property
+    def name(self) -> str:
+        return "My Automaton"
+
+    @property
+    def description(self) -> str:
+        return "Description of the rules"
+
+    @property
+    def version(self) -> str:
+        return "1.0"
+
+    def create_automaton(self, width: int, height: int) -> CellularAutomaton:
+        # Return your automaton instance
+        ...
 ```
 
-### TypeScript changes
+Plugins are auto-discovered at startup — no code changes to the core required.
 
-```bash
-cd lifegrid-ts
-npm run test
-npm run build
-```
+### As a built-in mode
 
----
-
-## Coding Standards
-
-### General
-
-- Keep APIs and UX consistent across Rust and TS where practical.
-- Prefer small, reviewable PRs.
-- Avoid unrelated refactors in feature PRs.
-
-### Rust
-
-- Format with `cargo fmt`.
-- Keep `cargo clippy` clean.
-- Avoid `unsafe` unless absolutely required and justified.
-
-### TypeScript
-
-- Keep strict type safety (`tsconfig` strict mode).
-- Avoid `any`; prefer explicit interfaces and narrow unions.
-- Keep model behavior isolated in `src/automata/models.ts` unless a new file split is justified.
-
----
-
-## Adding a New Automaton Model
-
-For feature parity, update both stacks when possible.
-
-### Rust path
-
-1. Add `lifegrid-rs/src/automata/<name>.rs` implementing `Automaton`.
-2. Register module and export in `lifegrid-rs/src/automata/mod.rs`.
-3. Add mode label to `ALL_MODES`.
-4. Add factory match arm in `make_automaton`.
-5. Ensure pattern list and click behavior are defined.
-
-### TypeScript path
-
-1. Add model class to `lifegrid-ts/src/automata/models.ts` implementing `Automaton`.
-2. Register it in `createModel` and `ALL_MODELS`.
-3. Add `colorForState` and `handleClick` behavior for multi-state models.
-4. Verify rendering and interactions in `lifegrid-ts/src/main.ts`.
-
-### Documentation
-
-Update all of:
-
-- `README.md` model lists and controls (if changed)
-- `CHANGELOG.md` (under `Unreleased`)
+1. Create a new file in `src/automata/` subclassing `CellularAutomaton`.
+2. Export it from `src/automata/__init__.py`.
+3. Register it in `src/gui/config.py` (`MODE_FACTORIES` and `MODE_PATTERNS`).
+4. Add patterns to `src/patterns.py`.
+5. Add a CLI alias in `src/cli.py`.
+6. Write tests.
 
 ---
 
 ## Project Layout
 
-| Path | Purpose |
-|---|---|
-| `lifegrid-rs/src/app.rs` | Native UI panels and simulation loop |
-| `lifegrid-rs/src/automata/` | Rust automata implementations |
-| `lifegrid-rs/src/core/` | Grid, boundary, undo, config |
-| `lifegrid-ts/src/main.ts` | Web UI, interactions, rendering |
-| `lifegrid-ts/src/automata/models.ts` | TS model registry and logic |
-| `lifegrid-ts/src/core/` | Shared TS interfaces and grid |
+| Directory | Purpose |
+|-----------|---------|
+| `src/automata/` | Automaton implementations |
+| `src/core/` | Simulator engine, config, undo, boundary |
+| `src/gui/` | GUI application and widgets |
+| `src/api/` | FastAPI REST + WebSocket server |
+| `src/advanced/` | Statistics, analysis, RLE, heatmaps |
+| `src/performance/` | GPU acceleration, benchmarking |
+| `plugins/` | User-installable plugins |
+| `tests/` | Test suite |
+| `docs/` | Documentation |
+| `examples/` | Example scripts |
 
 ---
 
 ## Reporting Issues
 
-Include:
+Open a GitHub issue with:
 
-- Clear description and reproduction steps
-- Expected and actual behavior
-- Platform impacted (`lifegrid-rs`, `lifegrid-ts`, or both)
-- Environment details (`rustc --version` and/or `node -v`, OS, browser)
+- A clear title and description
+- Steps to reproduce (if it's a bug)
+- Expected vs. actual behavior
+- Python version and OS
 
 ---
 
 ## License
 
-By contributing, you agree your contributions are licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the MIT License.

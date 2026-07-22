@@ -1,29 +1,17 @@
 #!/usr/bin/env bash
+# Ensure requirements are installed, then launch the simulator.
+
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUST_DIR="$ROOT_DIR/lifegrid-rs"
-TS_DIR="$ROOT_DIR/lifegrid-ts"
+VENV_DIR="$ROOT_DIR/.venv"
 
-mode="native"
-if [[ $# -gt 0 ]]; then
-  mode="$1"
+if [[ ! -x "$ROOT_DIR/install.sh" ]]; then
+    chmod +x "$ROOT_DIR/install.sh"
 fi
 
-case "$mode" in
-  native|rust|rs)
-    cd "$RUST_DIR"
-    cargo run
-    ;;
-  web|ts)
-    cd "$TS_DIR"
-    if [[ ! -d node_modules ]]; then
-      npm install
-    fi
-    npm run dev
-    ;;
-  *)
-    echo "Usage: ./run.sh [native|web]"
-    exit 1
-    ;;
-esac
+"$ROOT_DIR/install.sh"
+
+cd "$ROOT_DIR"
+export PYTHONPATH="$ROOT_DIR/src"
+exec "$VENV_DIR/bin/python" -m src.main

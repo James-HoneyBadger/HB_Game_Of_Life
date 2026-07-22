@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lifegrid"
+version = "3.1.0"
+description = "An extensible cellular automaton simulator with GUI, export features, and plugin support"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Honey Badger Universe", email = "your-email@example.com"}
+]
+keywords = [
+    "cellular-automata",
+    "conway-game-of-life",
+    "tkinter",
+    "simulation",
+    "interactive",
+    "automata",
+    "brians-brain",
+    "wireworld",
+    "langtons-ant",
+    "pattern-library",
+    "export",
+    "plugin-system"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment :: Simulation",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Life",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+]
+
+[project.optional-dependencies]
+export = [
+    "Pillow>=10.0.0",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.0.0",
+    "pylint>=2.17.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+]
+docs = [
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=1.3.0",
+]
+api = [
+]
+all = [
+    "lifegrid[export,dev,docs]",
+]
+
+[project.urls]
+Homepage = "https://github.com/James-HoneyBadger/LifeGrid"
+Documentation = "https://james-honeybadger.github.io/LifeGrid/"
+Repository = "https://github.com/James-HoneyBadger/LifeGrid"
+"Bug Tracker" = "https://github.com/James-HoneyBadger/LifeGrid/issues"
+Changelog = "https://github.com/James-HoneyBadger/LifeGrid/releases"
+
+[project.scripts]
+lifegrid = "src.main:main"
+
+[tool.setuptools]
+packages = [
+    "lifegrid",
+    "lifegrid.automata",
+    "lifegrid.gui",
+    "lifegrid.core",
+    "lifegrid.advanced",
+    "lifegrid.performance",
+]
+
+[tool.setuptools.package-dir]
+lifegrid = "src"

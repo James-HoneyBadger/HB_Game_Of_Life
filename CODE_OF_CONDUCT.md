@@ -1,41 +1,43 @@
 # Code of Conduct
 
-LifeGrid is a Rust/egui cellular automata project. We want it to be a
-welcoming place for everyone who wants to contribute, report issues, or just
-explore the code.
-
 ## Our Pledge
 
-Contributors, maintainers, and participants pledge to make involvement in this
-project a harassment-free experience for everyone, regardless of age, body
-size, disability, ethnicity, gender identity and expression, level of
-experience, nationality, personal appearance, race, religion, or sexual
+We as members, contributors, and leaders pledge to make participation in our
+community a harassment-free experience for everyone, regardless of age, body
+size, visible or invisible disability, ethnicity, sex characteristics, gender
+identity and expression, level of experience, education, socio-economic status,
+nationality, personal appearance, race, caste, color, religion, or sexual
 identity and orientation.
 
-## Expected Behaviour
+We pledge to act and interact in ways that contribute to an open, welcoming,
+diverse, inclusive, and healthy community.
 
-- Be respectful and constructive in all interactions.
-- Provide helpful, specific feedback on code and ideas.
-- Accept criticism gracefully and assume good faith.
-- Focus discussions on technical merit and project goals.
-- Keep issue reports and pull requests on-topic.
+## Our Standards
 
-## Unacceptable Behaviour
+Examples of behavior that contributes to a positive environment:
 
-- Harassment, insults, or personal attacks of any kind.
-- Deliberately off-topic or disruptive contributions.
-- Publishing private information (email, location, etc.) without consent.
-- Sustained trolling or bad-faith engagement.
+- Using welcoming and inclusive language
+- Being respectful of differing viewpoints and experiences
+- Giving and gracefully accepting constructive feedback
+- Accepting responsibility and apologizing to those affected by our mistakes
+- Focusing on what is best for the community
+
+Examples of unacceptable behavior:
+
+- The use of sexualized language or imagery, and sexual attention or advances of any kind
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information without explicit permission
+- Other conduct which could reasonably be considered inappropriate in a professional setting
 
 ## Enforcement
 
-Instances of unacceptable behaviour may be reported by opening a private issue
-or contacting the maintainer at **james@honey-badger.org**. All reports will
-be reviewed promptly and handled with discretion. Consequences range from a
-warning to a permanent ban, depending on severity.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported to the project maintainers. All complaints will be reviewed and
+investigated and will result in a response that is deemed necessary and
+appropriate to the circumstances.
 
 ## Attribution
 
 This Code of Conduct is adapted from the
-[Contributor Covenant](https://www.contributor-covenant.org/), version 2.1,
-tailored for the LifeGrid project.
+[Contributor Covenant](https://www.contributor-covenant.org/), version 2.1.

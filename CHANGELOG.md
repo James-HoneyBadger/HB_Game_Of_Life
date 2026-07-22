@@ -7,155 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
-
-## [4.1.1] — 2026-06-08
+## [3.1.0] — 2025-06-17
 
 ### Added
 
-- TypeScript web app: Run N controls in the side panel for fixed-step bursts.
-- TypeScript web app: `N` keyboard shortcut to trigger Run N using the configured step count.
-- TypeScript web app: session persistence in `localStorage` (model, pattern, grid state, speed, zoom, viewport, generation).
-- TypeScript web app: explicit Save/Load buttons for session state restore.
-- TypeScript web app: boundary mode control (`Wrap`/`Fixed`/`Reflect`) with persisted selection and boundary-aware stepping.
-- TypeScript web app: Vitest boundary regression tests for wrap/fixed/reflect behavior and Langton's Ant edge handling.
-
-### Changed
-
-- Rust native app: Langton's Ant now honors selected boundary mode (`Wrap`/`Fixed`/`Reflect`) instead of always wrapping.
-
----
-
-## [4.1.0] — 2026-06-06
-
-### Added
-
-- New TypeScript web application in `lifegrid-ts` (Vite + strict TypeScript + Canvas renderer).
-- Expanded TypeScript model support: Conway, High Life, Seeds, Day & Night, Maze,
-  Wireworld, Brian's Brain, Immigration, Rainbow, Hexagonal, Generations,
-  and Langton's Ant.
-- TypeScript interaction system with model-aware click behavior and multi-state coloring.
-- TypeScript undo/redo history (`Ctrl+Z`, `Ctrl+Y`, `Ctrl+Shift+Z`).
-- TypeScript PNG export from canvas (`E` shortcut).
-- TypeScript viewport controls:
-  - Middle-mouse pan
-  - Wheel/keyboard zoom (`+` / `-`)
-  - Center view (`C`)
-  - Fit to viewport (`F`)
-- TypeScript minimap overlay with click-to-jump navigation.
-
-### Changed
-
-- Native Rust UI simplification pass:
-  - text-first toolbar controls
-  - reduced visual noise in side panel
-  - beginner/advanced mode toggle
-  - quick-action row and onboarding helper text.
-- Added new Rust native models: Seeds, Day & Night, Maze.
-- Added starter patterns for new Rust models to improve first-run behavior.
-- Added inline mode descriptions in the native mode selector.
-
-### Documentation
-
-- README restructured for dual-platform architecture and current feature set.
-- CONTRIBUTING updated with Rust + TypeScript workflows, checks, and model parity guidance.
-
-## [4.0.0] — 2026-05-15
-
-### Changed
-
-- **Full rewrite in Rust.** The entire codebase has been ported from Python/Tkinter to
-  Rust using [eframe](https://github.com/emilk/egui/tree/master/crates/eframe) and
-  [egui](https://github.com/emilk/egui) for the native GUI.
-- All 10 automaton modes re-implemented as Rust structs behind a `Box<dyn Automaton>`
-  trait object interface.
-- Neighbour counting ported to pure Rust nested loops (no NumPy/SciPy dependency).
-- Persistent config now stored as JSON at `~/.config/lifegrid/lifegrid_config.json`.
-- Conway patterns hardcoded in `src/patterns.rs` (replaces the missing `patterns.json`).
-- PNG export implemented with the `image` crate.
-- Undo/redo retained (100-state `VecDeque` in `core/undo.rs`).
-- Three boundary modes (Wrap, Fixed, Reflect) retained.
-
-### Removed
-
-- Python source, CLI, REST/WebSocket API, plugin system, GPU acceleration, autosave,
-  Sphinx docs, Makefile, Dockerfile, and all Python packaging files.
-
----
-
-## [3.2.0] — 2026-02-19 *(Python, archived)*
-
-### Added
-
-- Run N Steps dialog (`Simulation → Run N Steps…`, shortcut `N`).
-- F5 Randomize command fills the grid with a random soup.
-- Scroll-wheel zoom adjusts cell size between 2 and 64 px.
-- GIF and RLE export menu items wired to `ExportManager` and `RLEEncoder`.
-- Boundary mode indicator in the window title bar.
-- AutoSave manager started on app init, stopped on close.
-- Command palette entries for all new actions.
+- **Headless CLI** (`src/cli.py`) — run simulations from the command line with `--mode`, `--rule`, `--steps`, `--export`, `--fps`, `--snapshot-every`, and `--quiet` flags.
+- **Boundary modes** — wrap (toroidal), fixed (dead edges), and reflect (mirror edges) via `BoundaryMode` enum and utility functions in `src/core/boundary.py`.
+- **GPU acceleration** — optional CuPy-based CUDA acceleration with automatic NumPy fallback (`src/performance/gpu.py`).
+- **Generation timeline** — scrub backward and forward through past simulation states in the GUI sidebar.
+- **Population graph** — real-time population-over-time chart displayed below the canvas.
+- **Breakpoint system** — pause the simulation when configurable conditions on population, generation, or density are met.
+- **Rule explorer** — browse and apply 10 named Life-like rulesets (Seeds, Day & Night, Diamoeba, Morley, Anneal, 2x2, HighLife, Maze, Move, Replicator).
+- **Command palette** — `Ctrl+Shift+P` quick-access overlay listing all available actions.
+- **Theme editor** — visual in-app editor for creating and applying custom color themes with 3 built-in presets.
+- **Pattern shape search** — draw a pattern on a mini-canvas and search the library by shape similarity.
+- **Collaborative sessions** — WebSocket-based multi-user grid editing via `/collab/{id}` endpoint in the API.
+- **Hexagonal Life** mode — hexagonal grid variant (`src/automata/hexagonal.py`).
+- **Comprehensive test suite** — 71 tests in `tests/test_thorough.py` covering all major components.
 
 ### Fixed
 
-- Boundary mode propagation across all 10 automata.
-- `CellularAutomaton` double `reset()` call in `__init__`.
-- `LifeLikeAutomaton` Moore-neighbourhood kernel moved to a class-level constant.
-- `LangtonsAnt.get_population_grid()` no longer includes the ant-position marker.
-- `copy_selection()` now captures all non-zero states, fixing multi-state copy/paste.
-- `step_back()` timeline and population graph now synchronise correctly.
-- Drag undo checkpoint creates one entry per drag gesture, not one per cell.
-- `SimulationState.export_metrics_csv()` dynamically discovers all metric keys.
-- `seen_hashes` memory capped at 2 000 entries with oldest-first eviction.
+- `Simulator.undo()` and `Simulator.redo()` now correctly pass `current_state` to `UndoManager`.
+- GUI crash caused by mixing `pack` and `grid` geometry managers on the root window.
+- `PopulationGraph._w` no longer shadows the internal `tk.Canvas._w` attribute.
+- All flake8, mypy, and pylint issues resolved (0 warnings, 0 errors).
 
 ---
 
-## [3.1.0] — 2025-06-17 *(Python, archived)*
-
-### Added
-
-- Headless CLI (`src/cli.py`).
-- Boundary modes: wrap, fixed, reflect.
-- Optional GPU acceleration via CuPy (`src/performance/gpu.py`).
-- Generation timeline scrubber and population graph.
-- Breakpoint system (pause on population/generation/density conditions).
-- Rule explorer with 10 named rulesets.
-- Command palette (`Ctrl+Shift+P`).
-- Theme editor with 3 built-in presets.
-- Pattern shape search.
-- Collaborative WebSocket sessions.
-- Hexagonal Life mode.
-- 71-test suite in `tests/test_thorough.py`.
-
----
-
-## [3.0.0] — 2025-06-01 *(Python, archived)*
+## [3.0.0] — 2025-06-01
 
 ### Added
 
 - Modern Tkinter GUI with toolbar, status bar, and tabbed settings panel.
-- 9 built-in automata modes.
-- Drawing tools, pattern browser, light/dark themes, undo/redo.
-- Statistics, heatmaps, symmetry detection, rule discovery.
-- Export to PNG, GIF, MP4, WebM, JSON, CSV.
-- Plugin system (Day & Night included).
-- FastAPI REST + WebSocket API.
+- 9 built-in automata modes (Conway, HighLife, Immigration, Rainbow, Langton's Ant, Wireworld, Brian's Brain, Generations, Custom Rules).
+- Drawing tools: pencil, eraser, stamp, and selection with configurable brush size and shape.
+- Pattern browser with built-in pattern library and RLE import/export.
+- Light and dark themes via `ThemeManager`.
+- Undo/redo system (up to 100 states) via `UndoManager`.
+- Statistics collection: population, density, entropy, complexity scoring.
+- Enhanced statistics: box-counting fractal dimension, connected components, cluster analysis, pattern symmetry detection, radial distribution.
+- Pattern analysis: bounding box extraction, period detection, displacement detection.
+- Cell age tracking with blue-to-red gradient heatmaps.
+- Activity and age heatmaps via `HeatmapGenerator`.
+- Symmetry detection and visualization (horizontal, vertical, rotational, diagonal, point).
+- Rule discovery: observe transitions, infer B/S notation, export discovered rules.
+- Export to PNG, GIF, MP4, WebM, JSON, and CSV.
+- Plugin system for user-installable automaton modes.
+- Day & Night plugin (B3678/S34678).
+- REST API via FastAPI with session management and pattern loading.
+- WebSocket streaming of simulation frames at ~20 Hz.
+- Persistent settings via `AppConfig` and `settings.json`.
+- Autosave manager for recovery.
+- Makefile with targets for install, test, lint, format, build, docs, and more.
 
 ---
 
-## [2.0.0] — 2025-04-15 *(Python, archived)*
+## [2.0.0] — 2025-04-15
 
 ### Added
 
-- Multi-mode automata engine with shared `CellularAutomaton` base class.
-- Grid rendering with zoom and pan.
-- Pattern loading from JSON.
+- Multi-mode automata engine with a shared `CellularAutomaton` base class.
+- Grid rendering with zoom, pan, and cell-size controls.
+- Basic pattern loading from JSON.
+- Configuration via `SimulatorConfig` dataclass.
+- Initial project scaffolding with `pyproject.toml`, `setup.py`, `Makefile`.
 
 ---
 
-## [1.0.0] — 2025-02-01 *(Python, archived)*
+## [1.0.0] — 2025-02-01
 
 ### Added
 
-- Initial release with Conway's Game of Life.
+- Initial release with Conway's Game of Life simulation.
 - Simple Tkinter canvas renderer.
 - Start, stop, step, and reset controls.

@@ -47,11 +47,3 @@ Thumbs.db
 # Exports
 *.png
 !docs/*.png
-
-# Rust build artifacts
-lifegrid-rs/target/
-
-# TypeScript build artifacts
-lifegrid-ts/node_modules/
-lifegrid-ts/dist/
-lifegrid-ts/tsconfig.tsbuildinfo
