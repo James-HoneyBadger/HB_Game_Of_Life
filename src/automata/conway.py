@@ -5,9 +5,10 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy import signal
 
+from core.boundary import convolve_with_boundary
 from patterns import PATTERN_DATA
+from scenarios import build_scenario, get_scenario_names
 
 from .base import CellularAutomaton
 
@@ -27,9 +28,16 @@ class ConwayGameOfLife(CellularAutomaton):
         """Load a predefined pattern onto the grid."""
         self.grid = np.zeros((self.height, self.width), dtype=int)
 
+        if pattern_name == "Empty":
+            return
+
         # Handle procedural patterns first
         if pattern_name == "Random Soup":
             self._add_random_soup()
+            return
+
+        if pattern_name in get_scenario_names():
+            self.grid = build_scenario(pattern_name, self.width, self.height)
             return
 
         # Load from JSON-backed pattern data
@@ -49,18 +57,18 @@ class ConwayGameOfLife(CellularAutomaton):
                 return
         except ImportError:
             pass  # Fallback or silent fail if patterns module not found
+        raise ValueError(
+            f"Unsupported pattern for ConwayGameOfLife: {pattern_name}"
+        )
 
     def _add_random_soup(self) -> None:
-        random_mask = np.random.random(self.grid.shape) < 0.15
+        random_mask = self.rng.random(self.grid.shape) < 0.15
         self.grid[random_mask] = 1
 
     def step(self) -> None:
         """Advance the automaton by one generation."""
-        neighbors = signal.convolve2d(
-            self.grid,
-            self._kernel,
-            mode="same",
-            boundary="wrap",
+        neighbors = convolve_with_boundary(
+            self.grid, self._kernel, self.boundary_mode
         )
         self.grid = (
             ((self.grid == 1) & ((neighbors == 2) | (neighbors == 3)))

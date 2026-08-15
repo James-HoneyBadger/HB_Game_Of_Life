@@ -115,3 +115,17 @@ class UndoManager:
             "last_undo_action": undo_actions[-1] if undo_actions else None,
             "last_redo_action": redo_actions[-1] if redo_actions else None,
         }
+
+    def memory_bytes(self) -> int:
+        """Estimate bytes held by NumPy array snapshots."""
+        total = 0
+        for _, state in (*self.undo_stack, *self.redo_stack):
+            if isinstance(state, np.ndarray):
+                total += int(state.nbytes)
+            elif isinstance(state, tuple):
+                total += sum(
+                    int(item.nbytes)
+                    for item in state
+                    if isinstance(item, np.ndarray)
+                )
+        return total

@@ -7,7 +7,7 @@ These are self-contained widgets that plug into AutomatonApp via simple
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 from collections import deque
 from typing import (
     TYPE_CHECKING,
@@ -33,10 +33,12 @@ class GenerationTimeline(ttk.Frame):
         self,
         parent: tk.Misc,
         on_seek: Callable[[int], None],
+        on_bookmark: Optional[Callable[[], None]] = None,
         **kw,
     ) -> None:
         super().__init__(parent, **kw)
         self._on_seek = on_seek
+        self._on_bookmark = on_bookmark
         self._max_gen = 0
         self._current = 0
 
@@ -67,6 +69,10 @@ class GenerationTimeline(ttk.Frame):
         ttk.Button(
             ctrl, text="\u23ed", width=3, command=self._go_end,
         ).pack(side=tk.LEFT, padx=2)
+        if self._on_bookmark is not None:
+            ttk.Button(
+                ctrl, text="Bookmark", width=8, command=self._on_bookmark,
+            ).pack(side=tk.LEFT, padx=2)
 
     # ------------------------------------------------------------------
     def update_range(self, max_gen: int, current: int) -> None:
@@ -205,6 +211,140 @@ class PopulationGraph(tk.Canvas):
 # ======================================================================
 #  3. Breakpoint System
 # ======================================================================
+
+class BookmarkManager:
+    """Manage named timeline bookmarks keyed by generation number."""
+
+    def __init__(self) -> None:
+        self._bookmarks: dict[str, int] = {}
+
+    def add(self, name: str, generation: int) -> None:
+        """Store a named bookmark for the given generation."""
+        if not name.strip():
+            raise ValueError("Bookmark name cannot be empty")
+        self._bookmarks[name.strip()] = int(generation)
+
+    def get(self, generation: int) -> str | None:
+        """Return the first bookmark name for a generation, if any."""
+        for name, value in self._bookmarks.items():
+            if value == int(generation):
+                return name
+        return None
+
+    def snapshot(self, generation: int | None = None) -> dict[str, int]:
+        """Return a copy of the bookmark mapping, optionally filtering by generation."""
+        if generation is None:
+            return dict(self._bookmarks)
+        return {
+            name: value for name, value in self._bookmarks.items()
+            if value == int(generation)
+        }
+
+    def list_bookmarks(self) -> dict[str, int]:
+        """Return a copy of all bookmarks keyed by bookmark name."""
+        return dict(self._bookmarks)
+
+    def remove(self, name: str) -> None:
+        """Remove a bookmark by name."""
+        if name in self._bookmarks:
+            del self._bookmarks[name]
+
+    def clear(self) -> None:
+        """Remove all bookmarks."""
+        self._bookmarks.clear()
+
+
+class BookmarkDialog:
+    """Dialog for saving and revisiting named generation bookmarks."""
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        manager: BookmarkManager,
+        current_generation: int = 0,
+        on_jump: Optional[Callable[[int], None]] = None,
+    ) -> None:
+        self.manager = manager
+        self.on_jump = on_jump
+        self._current_generation_value = current_generation
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Bookmarks")
+        if isinstance(parent, tk.Wm):
+            self.dialog.transient(parent)
+        self.dialog.grab_set()
+
+        container = ttk.Frame(self.dialog, padding=12)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        self._entries = tk.StringVar()
+        self._listbox = tk.Listbox(container, height=8, width=34)
+        self._listbox.pack(fill=tk.BOTH, expand=True, pady=(0, 8))
+        self._refresh_list()
+
+        entry_row = ttk.Frame(container)
+        entry_row.pack(fill=tk.X, pady=(0, 6))
+        ttk.Label(entry_row, text="Name").pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Entry(entry_row, textvariable=self._entries, width=18).pack(
+            side=tk.LEFT, fill=tk.X, expand=True,
+        )
+
+        action_row = ttk.Frame(container)
+        action_row.pack(fill=tk.X)
+        ttk.Button(
+            action_row,
+            text="Save Current",
+            command=self._save_current,
+        ).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(
+            action_row,
+            text="Jump",
+            command=self._jump,
+        ).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(
+            action_row,
+            text="Delete",
+            command=self._delete,
+        ).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(
+            action_row,
+            text="Close",
+            command=self.dialog.destroy,
+        ).pack(side=tk.RIGHT)
+
+    def _refresh_list(self) -> None:
+        self._listbox.delete(0, tk.END)
+        for name, generation in sorted(self.manager.list_bookmarks().items()):
+            self._listbox.insert(tk.END, f"{name} — gen {generation}")
+
+    def _save_current(self) -> None:
+        name = self._entries.get().strip()
+        if not name:
+            name = simpledialog.askstring("Bookmark name", "Name for this bookmark:")
+        if not name:
+            return
+        self.manager.add(name.strip(), self._current_generation_value)
+        self._refresh_list()
+
+    def _jump(self) -> None:
+        selection = self._listbox.curselection()
+        if not selection:
+            return
+        text = self._listbox.get(selection[0])
+        name = text.rsplit(" — gen ", 1)[0]
+        generation = self.manager.snapshot().get(name)
+        if generation is not None and self.on_jump is not None:
+            self.on_jump(generation)
+            self.dialog.destroy()
+
+    def _delete(self) -> None:
+        selection = self._listbox.curselection()
+        if not selection:
+            return
+        text = self._listbox.get(selection[0])
+        name = text.rsplit(" — gen ", 1)[0]
+        self.manager.remove(name)
+        self._refresh_list()
+
 
 class BreakpointCondition:
     """A single breakpoint condition."""
@@ -378,6 +518,67 @@ NAMED_RULES: list[tuple[str, str]] = [
 ]
 
 
+class RuleComparisonDialog:
+    """Compare two B/S rules side by side."""
+
+    def __init__(self, parent: tk.Misc) -> None:
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Rule Comparison")
+        if isinstance(parent, tk.Wm):
+            self.dialog.transient(parent)
+        self.dialog.geometry("420x300")
+        self.dialog.grab_set()
+
+        container = ttk.Frame(self.dialog, padding=12)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            container, text="Compare B/S rules",
+            font=("Segoe UI Semibold", 12),
+        ).pack(anchor=tk.W, pady=(0, 4))
+
+        fields = ttk.Frame(container)
+        fields.pack(fill=tk.X, pady=(0, 8))
+
+        self._left_var = tk.StringVar(value="B3/S23")
+        self._right_var = tk.StringVar(value="B36/S23")
+
+        ttk.Label(fields, text="A:").grid(row=0, column=0, sticky=tk.W, padx=(0, 6))
+        ttk.Entry(fields, textvariable=self._left_var, width=16).grid(row=0, column=1, sticky=tk.EW)
+        ttk.Label(fields, text="B:").grid(row=1, column=0, sticky=tk.W, padx=(0, 6), pady=(6, 0))
+        ttk.Entry(fields, textvariable=self._right_var, width=16).grid(row=1, column=1, sticky=tk.EW, pady=(6, 0))
+        fields.columnconfigure(1, weight=1)
+
+        self._result_var = tk.StringVar(value="")
+        ttk.Label(container, textvariable=self._result_var, justify=tk.LEFT, wraplength=360).pack(anchor=tk.W, fill=tk.X)
+
+        button_row = ttk.Frame(container)
+        button_row.pack(fill=tk.X, pady=(12, 0))
+        ttk.Button(button_row, text="Compare", command=self._compare).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(button_row, text="Close", command=self.dialog.destroy).pack(side=tk.LEFT)
+
+        self._compare()
+
+    def _compare(self) -> None:
+        from automata import compare_bs_rules
+
+        try:
+            result = compare_bs_rules(self._left_var.get(), self._right_var.get())
+        except Exception as exc:  # pragma: no cover - UI guard
+            self._result_var.set(f"Invalid rule: {exc}")
+            return
+
+        diff = (
+            f"Shared birth: {sorted(result['shared_birth']) or 'none'}\n"
+            f"Exclusive to A: {sorted(result['exclusive_birth_a']) or 'none'}\n"
+            f"Exclusive to B: {sorted(result['exclusive_birth_b']) or 'none'}\n\n"
+            f"Shared survival: {sorted(result['shared_survival']) or 'none'}\n"
+            f"Exclusive to A: {sorted(result['exclusive_survival_a']) or 'none'}\n"
+            f"Exclusive to B: {sorted(result['exclusive_survival_b']) or 'none'}"
+        )
+        self._result_var.set(diff)
+
+
 class RuleExplorer:
     """Interactive B/S rule panel with checkboxes and presets."""
 
@@ -458,6 +659,10 @@ class RuleExplorer:
             command=self._apply,
         ).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(
+            btn, text="Compare…",
+            command=self._open_compare_dialog,
+        ).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(
             btn, text="Close", command=self.dialog.destroy,
         ).pack(side=tk.LEFT)
 
@@ -491,6 +696,9 @@ class RuleExplorer:
         b = "".join(str(i) for i, v in enumerate(self._b_vars) if v.get())
         s = "".join(str(i) for i, v in enumerate(self._s_vars) if v.get())
         self._on_apply(b, s)
+
+    def _open_compare_dialog(self) -> None:
+        RuleComparisonDialog(self.dialog)
 
 
 # ======================================================================

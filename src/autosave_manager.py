@@ -15,6 +15,9 @@ from typing import Optional, Callable
 
 import numpy as np
 
+from core.simulator import Simulator
+from core.snapshot import load_snapshot_dict, snapshot_dict
+
 
 class AutoSaveManager:
     """Manages automatic saving of simulation state.
@@ -52,6 +55,25 @@ class AutoSaveManager:
             callback: Function that returns state dictionary
         """
         self._save_callback = callback
+
+    def save_simulator(self, simulator: Simulator) -> Path:
+        """Save a simulator using the versioned snapshot schema."""
+        self._save_state(snapshot_dict(simulator))
+        self.last_save_time = time.time()
+        latest = self.get_latest_autosave()
+        if latest is None:
+            raise OSError("Autosave was not created")
+        return latest
+
+    def load_latest_simulator(self) -> Optional[Simulator]:
+        """Restore the newest versioned simulator autosave, if available."""
+        state = self.load_latest_autosave()
+        if state is None:
+            return None
+        try:
+            return load_snapshot_dict(state)
+        except (KeyError, TypeError, ValueError):
+            return None
 
     def start(self) -> None:
         """Start auto-save timer."""
@@ -98,16 +120,18 @@ class AutoSaveManager:
         Args:
             state: State dictionary to save
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         filename = f"autosave_{timestamp}.json"
         filepath = self.save_dir / filename
 
         # Convert numpy arrays to lists for JSON serialization
         serializable_state = self._make_serializable(state)
 
-        # Save to file
-        with open(filepath, "w", encoding="utf-8") as f:
+        # Replace atomically so recovery never observes a partial JSON file.
+        temporary = filepath.with_suffix(filepath.suffix + ".tmp")
+        with open(temporary, "w", encoding="utf-8") as f:
             json.dump(serializable_state, f, indent=2)
+        temporary.replace(filepath)
 
         # Clean up old backups
         self._cleanup_old_backups()

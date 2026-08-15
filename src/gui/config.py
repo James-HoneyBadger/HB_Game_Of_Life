@@ -2,21 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List
+from typing import Dict, List
 
-from automata import (
-    BriansBrain,
-    CellularAutomaton,
-    ConwayGameOfLife,
-    GenerationsAutomaton,
-    HexagonalGameOfLife,
-    HighLife,
-    ImmigrationGame,
-    LangtonsAnt,
-    RainbowGame,
-    Wireworld,
-    parse_bs,
-)
+from automata import parse_bs
+from core.registry import iter_modes
+from scenarios import get_scenario_names
 
 # pylint: disable=import-error
 
@@ -26,16 +16,10 @@ DEFAULT_CUSTOM_RULE = "B3/S23"
 DEFAULT_CUSTOM_BIRTH, DEFAULT_CUSTOM_SURVIVAL = parse_bs(DEFAULT_CUSTOM_RULE)
 
 # Factory registry for standard modes
-MODE_FACTORIES: Dict[str, Callable[[int, int], CellularAutomaton]] = {
-    "Conway's Game of Life": ConwayGameOfLife,
-    "Hexagonal Life": HexagonalGameOfLife,
-    "High Life": HighLife,
-    "Immigration Game": ImmigrationGame,
-    "Rainbow Game": RainbowGame,
-    "Langton's Ant": LangtonsAnt,
-    "Wireworld": Wireworld,
-    "Brian's Brain": BriansBrain,
-    "Generations": GenerationsAutomaton,
+MODE_FACTORIES = {
+    descriptor.name: descriptor.factory
+    for descriptor in iter_modes()
+    if descriptor.factory is not None
 }
 
 # Pattern options per mode
@@ -56,12 +40,13 @@ MODE_PATTERNS: Dict[str, List[str]] = {
         "R-Pentomino",
         "Pulsar",
         "Lightweight Spaceship",
+        *get_scenario_names(),
         "Random Soup",
     ],
-    "High Life": ["Replicator", "Random Soup"],
+    "HighLife": ["Replicator", "Random Soup"],
     "Hexagonal Life": ["Random Soup"],
-    "Immigration Game": ["Color Mix", "Random Soup"],
-    "Rainbow Game": ["Rainbow Mix", "Random Soup"],
+    "Immigration": ["Color Mix", "Random Soup"],
+    "Rainbow": ["Rainbow Mix", "Random Soup"],
     "Langton's Ant": ["Empty"],
     "Wireworld": ["Random Soup"],
     "Brian's Brain": ["Random Soup"],

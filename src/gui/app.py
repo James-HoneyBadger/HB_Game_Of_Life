@@ -34,6 +34,7 @@ from .config import (
     MODE_PATTERNS,
     CELL_COLORS,
 )
+from core.registry import normalize_mode
 from .rendering import draw_grid, symmetry_positions
 from .state import SimulationState
 from .tools import ToolManager, Stamp
@@ -41,6 +42,8 @@ from .ui import Callbacks, TkVars, Widgets, build_ui
 from .new_features import (
     GenerationTimeline,
     PopulationGraph,
+    BookmarkManager,
+    BookmarkDialog,
     BreakpointManager,
     BreakpointDialog,
     RuleExplorer,
@@ -82,6 +85,12 @@ class AutomatonApp:
         self.theme_manager.set_theme(self.config.theme)
 
         self.state = SimulationState()
+        try:
+            self.boundary_mode = BoundaryMode.from_string(
+                self.config.boundary_mode
+            )
+        except ValueError:
+            self.boundary_mode = BoundaryMode.WRAP
 
         # Initialize Plugin System
         self.plugin_manager = PluginManager()
@@ -137,8 +146,8 @@ class AutomatonApp:
         self._update_display()
 
         # -- New feature initialization --
-        self.boundary_mode = BoundaryMode.WRAP
         self.breakpoint_manager = BreakpointManager()
+        self.bookmark_manager = BookmarkManager()
 
         # Command palette
         self.command_palette = CommandPalette(self.root)
@@ -150,7 +159,9 @@ class AutomatonApp:
         assert _canvas_parent is not None
         content_frame = _canvas_parent.master or self.root
         self._timeline = GenerationTimeline(
-            content_frame, on_seek=self._seek_generation,
+            content_frame,
+            on_seek=self._seek_generation,
+            on_bookmark=self.open_bookmark_dialog,
         )
         self._timeline.grid(
             row=1, column=0, sticky="ew", padx=4, pady=(4, 0),
@@ -268,6 +279,7 @@ class AutomatonApp:
             automaton.grid = (
                 current_grid  # Some automata might need explicit set
             )
+            self.state.reset_after_grid_replacement(current_grid)
 
             self._update_display()
             messagebox.showinfo("Success", "RLE pattern loaded successfully.")
@@ -682,6 +694,7 @@ class AutomatonApp:
         self.config.custom_birth = self.custom_birth_text
         self.config.custom_survival = self.custom_survival_text
         self.config.theme = self.theme_manager.get_theme()
+        self.config.boundary_mode = self.boundary_mode.value
 
         try:
             self.config.save("settings.json")
@@ -709,7 +722,10 @@ class AutomatonApp:
         # Ensure we always start from a valid default on cold start.
         default_mode = "Conway's Game of Life"
 
-        requested_mode = self.config.automaton_mode
+        try:
+            requested_mode = normalize_mode(self.config.automaton_mode)
+        except ValueError:
+            requested_mode = default_mode
         valid_modes = set(MODE_FACTORIES.keys()) | {"Custom Rules"}
         mode = (
             requested_mode if requested_mode in valid_modes else default_mode
@@ -812,6 +828,7 @@ class AutomatonApp:
         """Switch to the requested automaton mode and refresh the grid."""
 
         self.stop_simulation()
+        mode_name = normalize_mode(mode_name)
         if mode_name == "Custom Rules":
             automaton = LifeLikeAutomaton(
                 self.state.grid_width,
@@ -829,6 +846,8 @@ class AutomatonApp:
                 self.state.grid_height,
             )
 
+        self.state.current_automaton.set_boundary_mode(self.boundary_mode)
+
         patterns = MODE_PATTERNS.get(mode_name, ["Empty"])
         self.widgets.pattern_combo["values"] = patterns
         self.tk_vars.pattern.set(patterns[0])
@@ -838,8 +857,8 @@ class AutomatonApp:
             first_pattern = patterns[0]
         else:
             first_pattern = "Empty"
-        if first_pattern != "Empty" and hasattr(automaton, "load_pattern"):
-            automaton.load_pattern(first_pattern)  # type: ignore[attr-defined]
+        if first_pattern != "Empty":
+            automaton.load_pattern(first_pattern)
 
         self.state.reset_generation()
         self._reset_history_with_current_grid()
@@ -857,8 +876,8 @@ class AutomatonApp:
         pattern_name = self.tk_vars.pattern.get()
         if pattern_name == "Empty":
             automaton.reset()
-        elif hasattr(automaton, "load_pattern"):
-            automaton.load_pattern(pattern_name)  # type: ignore[attr-defined]
+        else:
+            automaton.load_pattern(pattern_name)
         self.state.reset_generation()
         self._reset_history_with_current_grid()
         self._update_generation_label()
@@ -904,8 +923,15 @@ class AutomatonApp:
             return
         if not self.state.grid_history:
             self._snapshot_grid()
+        previous_grid = np.copy(automaton.grid)
         automaton.step()
         self.state.generation += 1
+        self.state.record_transition(
+            previous_grid,
+            automaton.grid,
+            self.state.generation,
+            automaton.get_state_count(),
+        )
         self._snapshot_grid()
         self._update_generation_label()
         self._update_display()
@@ -1389,7 +1415,7 @@ class AutomatonApp:
         )
         if not filename:
             return
-        grid = self.state.current_automaton.get_grid()
+        grid = self.state.current_automaton.grid
         image = PILImage.new(
             "RGB",
             (self.state.grid_width, self.state.grid_height),
@@ -1433,7 +1459,8 @@ class AutomatonApp:
         automaton = self.state.current_automaton
         if not (automaton and self.widgets.canvas):
             return
-        grid = automaton.get_grid()
+        render_grid = automaton.get_grid()
+        raw_grid = automaton.grid
 
         # Build color map for rendering
         theme = self.theme_manager.get_colors()
@@ -1451,7 +1478,7 @@ class AutomatonApp:
 
         draw_grid(
             self.widgets.canvas,
-            grid,
+            render_grid,
             self.state.cell_size,
             self.state.show_grid,
             colors=colors,
@@ -1475,7 +1502,7 @@ class AutomatonApp:
                 tags="selection_overlay",
             )  # type: ignore[call-overload]
 
-        stats = self.state.update_population_stats(grid)
+        stats = self.state.update_population_stats(raw_grid, record=False)
         self.widgets.population_label.config(  # type: ignore[attr-defined]
             text=stats
         )
@@ -1678,7 +1705,7 @@ class AutomatonApp:
         p.register(
             "Switch to Light Theme", lambda: self.set_app_theme("light"),
         )
-        p.register("Boundary: Wrap", lambda: self._set_boundary("wrap"))
+        p.register("Boundary: Toroidal / Wrap", lambda: self._set_boundary("toroidal"))
         p.register("Boundary: Fixed", lambda: self._set_boundary("fixed"))
         p.register("Boundary: Reflect", lambda: self._set_boundary("reflect"))
         p.register(
@@ -1689,6 +1716,8 @@ class AutomatonApp:
     def _set_boundary(self, mode_name: str) -> None:
         """Change the boundary mode."""
         self.boundary_mode = BoundaryMode.from_string(mode_name)
+        if self.state.current_automaton:
+            self.state.current_automaton.set_boundary_mode(self.boundary_mode)
 
     def _toggle_dark_light(self) -> None:
         """Quick toggle between dark and light themes."""
@@ -1706,6 +1735,15 @@ class AutomatonApp:
     def open_breakpoints_dialog(self) -> None:
         """Open the simulation breakpoints manager."""
         BreakpointDialog(self.root, self.breakpoint_manager)
+
+    def open_bookmark_dialog(self) -> None:
+        """Open the generation bookmark manager."""
+        BookmarkDialog(
+            self.root,
+            self.bookmark_manager,
+            current_generation=self.state.generation,
+            on_jump=self._seek_generation,
+        )
 
     def open_theme_editor(self) -> None:
         """Open the custom theme editor."""

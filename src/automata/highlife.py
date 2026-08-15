@@ -5,8 +5,8 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy import signal
 
+from core.boundary import convolve_with_boundary
 from .base import CellularAutomaton
 
 
@@ -24,6 +24,8 @@ class HighLife(CellularAutomaton):
     def load_pattern(self, pattern_name: str) -> None:
         """Populate the grid with the requested preset pattern."""
         self.grid = np.zeros((self.height, self.width), dtype=int)
+        if pattern_name == "Empty":
+            return
         center_x = self.width // 2
         center_y = self.height // 2
 
@@ -31,6 +33,8 @@ class HighLife(CellularAutomaton):
             self._add_replicator(center_x, center_y)
         elif pattern_name == "Random Soup":
             self._add_random_soup()
+        else:
+            raise ValueError(f"Unsupported pattern for HighLife: {pattern_name}")
 
     def _add_replicator(self, center_x: int, center_y: int) -> None:
         """Place a replicator pattern centered at the given coordinates."""
@@ -42,17 +46,14 @@ class HighLife(CellularAutomaton):
 
     def _add_random_soup(self) -> None:
         """Scatter random live cells across the grid."""
-        random_mask = np.random.random(self.grid.shape) < 0.15
+        random_mask = self.rng.random(self.grid.shape) < 0.15
         self.grid[random_mask] = 1
 
     def step(self) -> None:
         """Advance the automaton by one generation."""
         kernel = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
-        neighbors = signal.convolve2d(
-            self.grid,
-            kernel,
-            mode="same",
-            boundary="wrap",
+        neighbors = convolve_with_boundary(
+            self.grid, kernel, self.boundary_mode
         )
         birth = (self.grid == 0) & ((neighbors == 3) | (neighbors == 6))
         survival = (self.grid == 1) & ((neighbors == 2) | (neighbors == 3))

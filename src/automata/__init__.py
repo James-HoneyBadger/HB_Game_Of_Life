@@ -8,7 +8,7 @@ from .generations import GenerationsAutomaton
 from .hexagonal import HexagonalGameOfLife
 from .highlife import HighLife
 from .immigration import ImmigrationGame
-from .lifelike import LifeLikeAutomaton, parse_bs
+from .lifelike import LifeLikeAutomaton, compare_bs_rules, parse_bs
 from .rainbow import RainbowGame
 from .wireworld import Wireworld
 
@@ -22,6 +22,7 @@ __all__ = [
     "LangtonsAnt",
     "LifeLikeAutomaton",
     "parse_bs",
+    "compare_bs_rules",
     "Wireworld",
     "BriansBrain",
     "GenerationsAutomaton",

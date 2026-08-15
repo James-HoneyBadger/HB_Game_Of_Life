@@ -1,6 +1,6 @@
 # API Reference
 
-LifeGrid provides a REST and WebSocket API built with FastAPI for programmatic access, streaming, and collaborative editing.
+LifeGrid provides a REST and WebSocket API built with FastAPI for programmatic access, streaming, and collaborative editing. Version 4 clients should use the `/api/v1` route prefix; the unprefixed routes remain available during the migration.
 
 ## Starting the Server
 
@@ -14,6 +14,10 @@ The API runs at `http://localhost:8000`. Interactive docs are available at `/doc
 
 ## REST Endpoints
 
+Versioned equivalents are available under `/api/v1`, for example
+`GET /api/v1/modes`, `GET /api/v1/patterns?mode=conway`, and `POST /api/v1/session`. Versioned WebSocket routes
+include `/api/v1/session/{id}/stream` and `/api/v1/collab/{id}`.
+
 ### Health Check
 
 ```
@@ -21,6 +25,80 @@ GET /health
 ```
 
 **Response:** `{"status": "ok"}`
+
+---
+
+### Diagnostics
+
+```
+GET /diagnostics
+```
+
+Returns runtime version, Python/platform information, mode/plugin counts,
+pattern-resource status, and active session capacity. The same endpoint is
+available under `/api/v1/diagnostics`.
+
+---
+
+### Mode Discovery
+
+```
+GET /modes
+```
+
+Returns canonical automaton names, descriptions, and accepted aliases so API
+clients can build mode selectors without duplicating the registry.
+
+**Response:**
+
+```json
+[
+  {
+    "name": "Conway's Game of Life",
+    "description": "Classic B3/S23 cellular automaton",
+    "aliases": ["conway"],
+    "source": "builtin",
+    "api_version": 1,
+    "capabilities": {}
+  }
+]
+```
+
+---
+
+### Boundary Modes
+
+LifeGrid supports three canonical boundary modes for simulation edges:
+
+- `wrap` (also accepted as `toroidal`, `wrap-around`, `wrap_around`, `continuous`, `loop`, `wrapped`) — cells crossing the edge reappear on the opposite side and continue moving normally.
+- `fixed` — cells outside the grid are treated as dead.
+- `reflect` — the edge mirrors the grid interior.
+
+This behavior is implemented in the simulator core and is available to both the GUI and the API.
+
+---
+
+### Boundary Discovery
+
+```
+GET /boundaries
+```
+
+Returns the canonical boundary modes and accepted aliases for client and UI discovery.
+
+**Response:**
+
+```json
+[
+  {
+    "name": "wrap",
+    "description": "Toroidal wraparound: cells continue across opposite edges",
+    "aliases": ["toroidal", "wrap-around", "continuous", "loop"],
+    "api_version": 1,
+    "capabilities": {"cross_boundary_motion": true}
+  }
+]
+```
 
 ---
 
@@ -38,9 +116,12 @@ Creates a new simulation session.
 |-------|------|---------|-------------|
 | `width` | int (4–2048) | 64 | Grid width |
 | `height` | int (4–2048) | 64 | Grid height |
-| `mode` | string | `"conway"` | Automaton mode |
-| `birth_rule` | list[int] | null | Custom birth rule (e.g., `[3, 6]`) |
-| `survival_rule` | list[int] | null | Custom survival rule (e.g., `[2, 3]`) |
+| `mode` | string | `"conway"` | Automaton mode or alias |
+| `boundary_mode` | string | `"wrap"` | Boundary mode: `wrap` (aliases: `toroidal`, `wrap-around`, `continuous`, `loop`), `fixed`, or `reflect` |
+| `seed` | int (non-negative) | null | Seed for reproducible procedural patterns |
+| `max_cycle_states` | int (1–1,000,000) | 10000 | Cycle fingerprint memory limit |
+| `birth_rule` | string | null | Custom birth counts, e.g. `"36"` |
+| `survival_rule` | string | null | Custom survival counts, e.g. `"23"` |
 | `pattern` | string | null | Pattern name to load |
 
 **Response:** `{"session_id": "<uuid>"}`
@@ -50,8 +131,60 @@ Creates a new simulation session.
 ```bash
 curl -X POST http://localhost:8000/session \
   -H "Content-Type: application/json" \
-  -d '{"width": 128, "height": 128, "mode": "highlife"}'
+  -d '{"width": 128, "height": 128, "mode": "highlife", "boundary_mode": "fixed"}'
 ```
+
+---
+
+### Delete Session
+
+```
+DELETE /session/{session_id}
+```
+
+Deletes the in-memory session.
+
+**Response:** `{"status": "deleted"}`
+
+---
+
+### Restore Session
+
+```
+POST /session/restore
+```
+
+Creates a new session from the JSON object returned by
+`GET /session/{session_id}/snapshot`.
+
+**Response:** `{"session_id": "<uuid>"}`
+
+Invalid or unsupported snapshots return HTTP 400.
+
+The process-local service enforces `LIFEGRID_MAX_SESSIONS` (default `100`).
+Creation returns HTTP 503 when capacity is reached.
+
+---
+
+### List Sessions
+
+```
+GET /sessions
+```
+
+Returns active in-memory sessions with canonical mode, boundary, seed, and
+generation metadata.
+
+---
+
+### Get Session Metadata
+
+```
+GET /session/{session_id}
+```
+
+Returns one session's configuration and aggregate metrics without returning the
+full grid.
 
 ---
 
@@ -73,6 +206,18 @@ Advance the simulation by one or more generations.
 
 ---
 
+### Reset Session
+
+```
+POST /session/{session_id}/reset
+```
+
+Clears the current automaton and resets generation and metrics.
+
+**Response:** `{"generation": 0}`
+
+---
+
 ### Get State
 
 ```
@@ -80,6 +225,9 @@ GET /session/{session_id}/state
 ```
 
 Returns the current grid state.
+
+The API returns raw simulation state. Renderer-only overlays, such as the
+Langton's Ant marker used by the GUI, are not included.
 
 **Response:**
 
@@ -89,6 +237,47 @@ Returns the current grid state.
   "width": 128,
   "height": 128,
   "grid": [[0, 1, 0, ...], ...]
+}
+```
+
+---
+
+### Get Snapshot
+
+```
+GET /session/{session_id}/snapshot
+```
+
+Returns a versioned JSON snapshot containing configuration, grid, generation,
+metrics, and RNG state for replay or persistence.
+
+---
+
+### Get Metrics
+
+```
+GET /session/{session_id}/metrics
+```
+
+Returns aggregate metrics including generation count, population, density,
+undo/redo availability, and cycle-detection status.
+
+**Response example:**
+
+```json
+{
+  "generations": 10,
+  "current_population": 24,
+  "max_population": 31,
+  "avg_density": 0.0064,
+  "births": 12,
+  "deaths": 8,
+  "state_counts": {"0": 9976, "1": 24},
+  "undo_available": true,
+  "redo_available": false,
+  "cycle_detected": false,
+  "cycle_start": null,
+  "cycle_period": null
 }
 ```
 
@@ -110,6 +299,10 @@ Load a pattern into the session grid.
 | `pattern_name` | string | Named pattern to load |
 
 Provide either `rle` or `pattern_name`.
+
+Mode aliases are case-insensitive. For example, `conway`, `highlife`, and
+`hexagonal` are accepted alongside their canonical display names. Unknown
+modes and incomplete custom-rule pairs return HTTP 400.
 
 **Response:** `{"status": "ok"}`
 
@@ -255,8 +448,8 @@ em.export_json("state.json", grid, metadata={"generation": 100})
 from src.advanced.rle_format import RLEParser, RLEEncoder
 
 # Parse
-width, height, grid = RLEParser.parse("bo$2bo$3o!")
-grid = RLEParser.parse_file("pattern.rle")
+grid, metadata = RLEParser.parse("bo$2bo$3o!")
+grid, metadata = RLEParser.parse_file("pattern.rle")
 
 # Encode
 rle_string = RLEEncoder.encode(grid)
@@ -266,7 +459,7 @@ RLEEncoder.encode_to_file(grid, "output.rle")
 ### Plugin System
 
 ```python
-from src.plugin_system import PluginManager
+from plugin_system import PluginManager
 
 pm = PluginManager()
 count = pm.load_plugins_from_directory("plugins")

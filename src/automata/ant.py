@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from core.boundary import BoundaryMode
 from .base import CellularAutomaton
 
 
@@ -32,14 +33,19 @@ class LangtonsAnt(CellularAutomaton):
         else:
             self.ant_dir = (self.ant_dir - 1) % 4
 
-        if self.ant_dir == 0:
-            self.ant_y = (self.ant_y - 1) % self.height
-        elif self.ant_dir == 1:
-            self.ant_x = (self.ant_x + 1) % self.width
-        elif self.ant_dir == 2:
-            self.ant_y = (self.ant_y + 1) % self.height
+        dx, dy = ((0, -1), (1, 0), (0, 1), (-1, 0))[self.ant_dir]
+        next_x = self.ant_x + dx
+        next_y = self.ant_y + dy
+        if self.boundary_mode == BoundaryMode.WRAP:
+            self.ant_x = next_x % self.width
+            self.ant_y = next_y % self.height
+        elif 0 <= next_x < self.width and 0 <= next_y < self.height:
+            self.ant_x = next_x
+            self.ant_y = next_y
         else:
-            self.ant_x = (self.ant_x - 1) % self.width
+            # Fixed and reflected boundaries keep the ant on the grid and
+            # turn it around when the next move would leave the world.
+            self.ant_dir = (self.ant_dir + 2) % 4
 
     def get_grid(self) -> np.ndarray:
         display_grid = self.grid.copy()
@@ -49,3 +55,16 @@ class LangtonsAnt(CellularAutomaton):
     def handle_click(self, x: int, y: int) -> None:
         self.ant_x = x
         self.ant_y = y
+
+    def get_internal_state(self) -> dict:
+        """Return the ant position and heading for persistence."""
+        return {
+            "ant_x": self.ant_x,
+            "ant_y": self.ant_y,
+            "ant_dir": self.ant_dir,
+        }
+
+    def restore_internal_state(self, state: dict) -> None:
+        self.ant_x = int(state["ant_x"])
+        self.ant_y = int(state["ant_y"])
+        self.ant_dir = int(state["ant_dir"]) % 4

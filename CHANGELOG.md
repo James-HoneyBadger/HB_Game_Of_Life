@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] — 2026-08-15
+
+This release finalizes the Version 4 simulation platform: the CLI, GUI,
+API, snapshots, plugins, exports, diagnostics, and core engine are aligned
+under a single canonical registry and state model.
+
+### Added
+
+- Canonical mode registry and mode discovery for CLI, API, and plugins.
+- Shared simulator contract for parsing, stepping, editing, metrics, and state
+  persistence.
+- Versioned API v1 routes with session metadata, diagnostics, and pattern
+  discovery.
+- Full JSON/CSV export metadata with state counts and metrics summaries.
+- Plugin validation and graceful duplicate registration protections.
+- Snapshot restore validation for shape, state range, and internal automaton
+  state.
+- Autosave and replay recovery using the versioned snapshot schema.
+- Memory and runtime diagnostics for operational observability.
+
+### Changed
+
+- Core metrics, cycle detection, and snapshots now operate on raw automaton
+  state rather than display overlays.
+- GUI and API consumers now share the same canonical state semantics.
+- The public package namespace is promoted as the versioned entry point.
+
+### Fixed
+
+- Langton's Ant persistence and raw grid continuity.
+- Steady-state GUI history duplication and export corruption.
+- Plugin reload loops and name/alias collisions.
+- Invalid pattern, state, and negative step values are rejected explicitly.
+
+---
+
+## [3.2.1] — 2026-08-14
+
+This release restores the Python implementation as the maintained 3.2 line
+after the later Rust/TypeScript experiment and records the compatibility and
+reliability work completed during that restoration.
+
+### Added
+
+- Deterministic CLI simulations with the `--seed` option.
+- Exact cycle detection in `Simulator.get_metrics_summary()`.
+- Bundled Conway pattern data with package and wheel resource support.
+- API session deletion through `DELETE /session/{session_id}`.
+- Technical reference documentation and regression coverage for the public
+	simulation, RLE, export, plugin, and API surfaces.
+- Canonical mode registry, shared automaton contract, boundary integration,
+	owned random generators, bounded cycle detection, and raw-state persistence.
+- Versioned snapshots, autosave recovery, CLI resume, API v1 routes, plugin
+	discovery metadata, and public `lifegrid.*` imports.
+
+### Fixed
+
+- Custom B/S rules and Hexagonal Life now initialize through the core
+	simulator and CLI.
+- Incomplete virtual environments are repaired by the installer.
+- Installed `lifegrid` and `lifegrid-gui` entry points now match their
+	documented purposes.
+- CLI numeric arguments reject invalid zero and negative values.
+- Documentation and package metadata no longer report the stale `3.1.0`
+	version.
+
+---
+
 ## [3.1.0] — 2025-06-17
 
 ### Added

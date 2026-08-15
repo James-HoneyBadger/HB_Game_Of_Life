@@ -7,8 +7,8 @@ from __future__ import annotations
 from typing import Iterable, Set
 
 import numpy as np
-from scipy import signal
 
+from core.boundary import convolve_with_boundary
 from .base import CellularAutomaton
 
 
@@ -41,8 +41,12 @@ class GenerationsAutomaton(CellularAutomaton):
         """Load a named pattern into the grid."""
         self.reset()
         if pattern_name == "Random Soup":
-            mask = np.random.random(self.grid.shape) < 0.15
+            mask = self.rng.random(self.grid.shape) < 0.15
             self.grid[mask] = 1
+        elif pattern_name != "Empty":
+            raise ValueError(
+                f"Unsupported pattern for GenerationsAutomaton: {pattern_name}"
+            )
 
     def set_rules(
         self,
@@ -61,11 +65,8 @@ class GenerationsAutomaton(CellularAutomaton):
 
         kernel = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
         live_layer = (self.grid == 1).astype(int)
-        neighbors = signal.convolve2d(
-            live_layer,
-            kernel,
-            mode="same",
-            boundary="wrap",
+        neighbors = convolve_with_boundary(
+            live_layer, kernel, self.boundary_mode
         )
 
         new_grid = np.copy(self.grid)
@@ -92,6 +93,10 @@ class GenerationsAutomaton(CellularAutomaton):
 
     def get_grid(self) -> np.ndarray:
         return self.grid  # type: ignore[no-any-return]
+
+    def get_state_count(self) -> int:
+        """Return the configured number of fading states."""
+        return self.n_states
 
     def handle_click(self, x: int, y: int) -> None:
         """Toggle cell state at the given coordinates."""

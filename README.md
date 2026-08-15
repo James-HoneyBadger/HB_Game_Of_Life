@@ -4,7 +4,7 @@ A feature-rich cellular automata simulator with a modern Tkinter GUI, headless C
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
-![Version 3.1.0](https://img.shields.io/badge/version-3.1.0-orange)
+![Version 4.0.0](https://img.shields.io/badge/version-4.0.0-blue)
 
 ---
 
@@ -39,6 +39,8 @@ A feature-rich cellular automata simulator with a modern Tkinter GUI, headless C
 - **Pattern shape search** — draw a shape and find matching patterns by similarity
 - **Grid overlays** — symmetry guides, cell age heatmaps, activity heatmaps
 - **Export** — PNG snapshots, animated GIF, MP4/WebM video, JSON state, CSV statistics
+- **Reproducible runs** — seeded simulations, bounded cycle detection, replayable snapshots, and `/api/v1` session APIs
+- **Version 4 foundations** — canonical mode registry, shared automaton contract, boundary-aware modes, autosave recovery, and stable `lifegrid.*` imports
 
 ### CLI
 
@@ -48,7 +50,13 @@ Run simulations headlessly for scripting and batch processing:
 python src/cli.py --mode conway --steps 500 --export output/result.gif --fps 15
 ```
 
-Supports `--mode`, `--rule` (custom B/S), `--width`, `--height`, `--cell-size`, `--export` (png/gif/mp4/webm/csv/json), `--fps`, `--snapshot-every`, and `--quiet`.
+Supports `--mode`, `--rule` (custom B/S), `--width`, `--height`, `--cell-size`, `--export` (png/gif/mp4/webm/csv/json), `--fps`, `--scenario` (named presets like `blinker` and `glider`), `--snapshot-every`, `--list-boundaries`, and `--quiet`.
+
+Example:
+
+```bash
+python src/cli.py --list-boundaries
+```
 
 ### REST & WebSocket API
 
@@ -61,6 +69,7 @@ uvicorn src.api.app:app --reload
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/health` | Health check |
+| `GET` | `/boundaries` | List boundary modes and accepted aliases |
 | `POST` | `/session` | Create a simulation session |
 | `POST` | `/session/{id}/step` | Advance one or more generations |
 | `GET` | `/session/{id}/state` | Get grid state as JSON |
@@ -103,7 +112,7 @@ python src/main.py
 ### Development Install
 
 ```bash
-make install-dev
+pip install -e ".[dev,docs,export]"
 ```
 
 This installs LifeGrid in editable mode with all optional dependencies (docs, export, dev tools).
@@ -111,7 +120,7 @@ This installs LifeGrid in editable mode with all optional dependencies (docs, ex
 ### Build a Standalone Executable
 
 ```bash
-make executable
+pyinstaller lifegrid.spec
 ```
 
 Uses PyInstaller with the included `lifegrid.spec`.
@@ -123,9 +132,9 @@ Uses PyInstaller with the included `lifegrid.spec`.
 ### GUI
 
 ```bash
-python src/main.py
-# or
-make run
+PYTHONPATH=src python src/main.py
+# or, after installation
+lifegrid-gui
 ```
 
 #### Keyboard Shortcuts
@@ -154,7 +163,8 @@ python src/cli.py --mode conway --steps 1000 --export sim.gif
 
 # Run HighLife with a 200x200 grid, export MP4 at 30 fps
 python src/cli.py --mode highlife -W 200 -H 200 --steps 500 --export video.mp4 --fps 30
-
+# Start from a built-in scenario preset
+python src/cli.py --mode conway --scenario blinker --steps 150 --quiet
 # Custom B/S rule, export CSV statistics
 python src/cli.py --rule B36/S23 --steps 2000 --export stats.csv
 
@@ -200,7 +210,7 @@ LifeGrid/
 │   ├── advanced/             # Statistics, pattern analysis, RLE, heatmaps
 │   └── performance/          # GPU acceleration, benchmarking
 ├── plugins/                  # User-installable automaton plugins
-├── tests/                    # Test suite (71 tests)
+├── tests/                    # Regression tests
 ├── examples/                 # Example scripts
 ├── output/                   # Default export directory
 └── docs/                     # Documentation
@@ -212,13 +222,15 @@ LifeGrid/
 
 ```bash
 # Run the full test suite
-make test
+python -m pytest -q
 
 # Run with coverage report
-make coverage
+python -m pytest --cov=src
 ```
 
-71 tests covering the simulator, all automata modes, boundary conditions, GPU module, CLI, REST API, collaborative sessions, breakpoints, pattern system, statistics, and more.
+The test suite covers the simulator, automata modes, CLI paths, pattern data,
+and core state history. Run it with `python -m pytest -q` from the repository
+root.
 
 ---
 
@@ -231,6 +243,8 @@ Full documentation is in the [`docs/`](docs/) directory:
 - [CLI Reference](docs/cli_reference.md)
 - [API Reference](docs/api_reference.md)
 - [Architecture](docs/architecture.md)
+- [Technical Reference](docs/technical_reference.md)
+- [3.2.1 to 4.0 Migration](docs/migration_3_to_4.md)
 - [Plugin Development](docs/plugin_development.md)
 
 ---

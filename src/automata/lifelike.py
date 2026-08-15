@@ -7,8 +7,8 @@ from __future__ import annotations
 from typing import Iterable, Set, Tuple
 
 import numpy as np
-from scipy import signal
 
+from core.boundary import convolve_with_boundary
 from .base import CellularAutomaton
 
 
@@ -36,6 +36,24 @@ def parse_bs(rule_str: str) -> Tuple[Set[int], Set[int]]:
             s_part = set()
 
     return b_part, s_part
+
+
+def compare_bs_rules(rule_a: str, rule_b: str) -> dict[str, set[int]]:
+    """Compare two B/S rules and return the shared and exclusive values."""
+    birth_a, survival_a = parse_bs(rule_a)
+    birth_b, survival_b = parse_bs(rule_b)
+    return {
+        "birth_a": set(birth_a),
+        "birth_b": set(birth_b),
+        "shared_birth": birth_a & birth_b,
+        "exclusive_birth_a": birth_a - birth_b,
+        "exclusive_birth_b": birth_b - birth_a,
+        "survival_a": set(survival_a),
+        "survival_b": set(survival_b),
+        "shared_survival": survival_a & survival_b,
+        "exclusive_survival_a": survival_a - survival_b,
+        "exclusive_survival_b": survival_b - survival_a,
+    }
 
 
 class LifeLikeAutomaton(CellularAutomaton):
@@ -66,17 +84,18 @@ class LifeLikeAutomaton(CellularAutomaton):
         """Load a named preset onto the current grid."""
         self.grid = np.zeros((self.height, self.width), dtype=int)
         if pattern_name == "Random Soup":
-            random_mask = np.random.random(self.grid.shape) < 0.15
+            random_mask = self.rng.random(self.grid.shape) < 0.15
             self.grid[random_mask] = 1
+        elif pattern_name != "Empty":
+            raise ValueError(
+                f"Unsupported pattern for LifeLikeAutomaton: {pattern_name}"
+            )
 
     def step(self) -> None:
         """Advance the automaton by one generation."""
         kernel = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
-        neighbors = signal.convolve2d(
-            self.grid,
-            kernel,
-            mode="same",
-            boundary="wrap",
+        neighbors = convolve_with_boundary(
+            self.grid, kernel, self.boundary_mode
         )
         birth_any = (
             np.logical_or.reduce([(neighbors == n) for n in self.birth])

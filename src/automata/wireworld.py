@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy import signal
 
+from core.boundary import convolve_with_boundary
 from .base import CellularAutomaton
 
 
 class Wireworld(CellularAutomaton):
     """Wireworld with four states: empty, head, tail, conductor."""
+
+    STATE_COUNT = 4
 
     EMPTY = 0
     HEAD = 1
@@ -31,21 +33,22 @@ class Wireworld(CellularAutomaton):
         self.reset()
         if pattern_name == "Random Soup":
             # Randomly sprinkle conductors and a few heads to start activity
-            conductor_mask = np.random.random(self.grid.shape) < 0.1
-            head_mask = np.random.random(self.grid.shape) < 0.02
+            conductor_mask = self.rng.random(self.grid.shape) < 0.1
+            head_mask = self.rng.random(self.grid.shape) < 0.02
             self.grid[conductor_mask] = self.CONDUCTOR
             self.grid[head_mask] = self.HEAD
+        elif pattern_name != "Empty":
+            raise ValueError(f"Unsupported pattern for Wireworld: {pattern_name}")
 
     def step(self) -> None:
         """Advance one generation according to Wireworld rules."""
 
         kernel = np.ones((3, 3), dtype=int)
         kernel[1, 1] = 0
-        head_neighbors = signal.convolve2d(
+        head_neighbors = convolve_with_boundary(
             (self.grid == self.HEAD).astype(int),
             kernel,
-            mode="same",
-            boundary="wrap",
+            self.boundary_mode,
         )
 
         new_grid = np.copy(self.grid)

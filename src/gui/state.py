@@ -12,6 +12,7 @@ from typing import Deque, List, Optional
 import numpy as np
 
 from core.undo_manager import UndoManager
+from core.metrics import calculate_transition_metrics
 from automata import CellularAutomaton
 
 from .config import DEFAULT_CELL_SIZE, DEFAULT_SPEED, MAX_HISTORY_LENGTH
@@ -51,6 +52,19 @@ class SimulationState:
     seen_hashes: dict = field(default_factory=dict)
     cycle_period: Optional[int] = None
     cycle_first_seen: Optional[int] = None
+    pending_transition_metrics: Optional[dict] = None
+
+    def record_transition(
+        self,
+        previous_grid: np.ndarray,
+        current_grid: np.ndarray,
+        generation: int,
+        state_count: int,
+    ) -> None:
+        """Queue shared core metrics for the next display update."""
+        self.pending_transition_metrics = calculate_transition_metrics(
+            previous_grid, current_grid, generation, state_count
+        )
 
     def reset_generation(self) -> None:
         """Reset generation counters and population history."""
@@ -65,6 +79,7 @@ class SimulationState:
         self.cycle_period = None
         self.cycle_first_seen = None
         self.grid_history.clear()
+        self.pending_transition_metrics = None
 
     def reset_metrics(self) -> None:
         """Reset metrics while keeping grid history intact."""
@@ -78,17 +93,37 @@ class SimulationState:
         self.seen_hashes.clear()
         self.cycle_period = None
         self.cycle_first_seen = None
+        self.pending_transition_metrics = None
 
-    def update_population_stats(self, grid: np.ndarray) -> str:
-        """Update population statistics and return the formatted label."""
+    def reset_after_grid_replacement(self, grid: np.ndarray) -> None:
+        """Reset runtime history after an external grid replacement."""
+        self.generation = 0
+        self.population_history.clear()
+        self.population_peak = 0
+        self.entropy_history.clear()
+        self.complexity_history.clear()
+        self.metrics_log.clear()
+        self.seen_hashes.clear()
+        self.cycle_period = None
+        self.cycle_first_seen = None
+        self.pending_transition_metrics = None
+        self.grid_history.clear()
+        self.grid_history.append(np.copy(grid))
+        self.undo_manager.clear()
 
+    def update_population_stats(
+        self, grid: np.ndarray, record: bool = True
+    ) -> str:
+        """Update the display label and optionally record a sample."""
+
+        transition_metrics = self.pending_transition_metrics
+        self.pending_transition_metrics = None
         live_cells = int(np.count_nonzero(grid))
         history = self.population_history
-        if history and history[-1] == live_cells:
-            delta = 0
-        else:
-            previous = history[-1] if history else 0
-            delta = live_cells - previous
+        previous = history[-1] if history else 0
+        delta = live_cells - previous
+        should_record = record or transition_metrics is not None
+        if should_record:
             history.append(live_cells)
         self.population_peak = max(self.population_peak, live_cells)
         total = grid.size if grid.size else 1
@@ -101,32 +136,44 @@ class SimulationState:
             entropy = -(p_live * np.log2(p_live) + p_dead * np.log2(p_dead))
         else:
             entropy = 0.0
-        self.entropy_history.append(entropy)
+        if should_record:
+            self.entropy_history.append(entropy)
 
         # Calculate complexity (number of different 3x3 patterns)
         complexity = self._calculate_complexity(grid)
-        self.complexity_history.append(complexity)
+        if should_record:
+            self.complexity_history.append(complexity)
 
-        # Cycle detection via hashed grid snapshots
-        grid_hash = hash((grid.shape, grid.tobytes()))
-        if grid_hash in self.seen_hashes:
-            first_seen = self.seen_hashes[grid_hash]
-            self.cycle_first_seen = first_seen
-            self.cycle_period = self.generation - first_seen
-        else:
-            self.seen_hashes[grid_hash] = self.generation
+        if should_record:
+            # Cycle detection via hashed grid snapshots
+            grid_hash = hash((grid.shape, grid.tobytes()))
+            if grid_hash in self.seen_hashes:
+                first_seen = self.seen_hashes[grid_hash]
+                self.cycle_first_seen = first_seen
+                self.cycle_period = self.generation - first_seen
+            else:
+                self.seen_hashes[grid_hash] = self.generation
 
-        self.metrics_log.append(
+        metric = transition_metrics or {
+            "generation": self.generation,
+            "population": live_cells,
+            "density": density / 100,
+            "births": 0,
+            "deaths": 0,
+            "state_counts": {},
+        }
+        metric.update(
             {
-                "generation": self.generation,
                 "live": live_cells,
                 "delta": delta,
-                "density": density,
+                "density_percent": density,
                 "entropy": entropy,
                 "complexity": complexity,
                 "cycle_period": self.cycle_period,
             }
         )
+        if should_record:
+            self.metrics_log.append(metric)
 
         parts = [
             f"Live: {live_cells}",
@@ -182,20 +229,22 @@ class SimulationState:
             return ""
 
         output = StringIO()
-        writer = csv.DictWriter(
-            output, fieldnames=["generation", "population", "peak", "density"]
-        )
+        fieldnames: list[str] = []
+        for metric in self.metrics_log:
+            for key in metric:
+                if key not in fieldnames:
+                    fieldnames.append(key)
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
 
         for metric in self.metrics_log:
-            writer.writerow(
-                {
-                    "generation": metric.get("generation", ""),
-                    "population": metric.get("population", ""),
-                    "peak": metric.get("peak", ""),
-                    "density": metric.get("density", ""),
-                }
-            )
+            row = {
+                key: json.dumps(value, sort_keys=True)
+                if isinstance(value, (dict, list, tuple))
+                else value
+                for key, value in metric.items()
+            }
+            writer.writerow(row)
 
         return output.getvalue()
 
@@ -205,6 +254,13 @@ class SimulationState:
             "cell_size": self.cell_size,
             "speed": self.speed,
             "generation": self.generation,
+            "grid_width": self.grid_width,
+            "grid_height": self.grid_height,
+            "grid": (
+                self.current_automaton.grid.tolist()
+                if self.current_automaton is not None
+                else None
+            ),
             "metrics_log": self.metrics_log,
         }
         with open(filepath, "w", encoding="utf-8") as f:
@@ -219,3 +275,18 @@ class SimulationState:
         self.speed = state_data.get("speed", DEFAULT_SPEED)
         self.generation = state_data.get("generation", 0)
         self.metrics_log = state_data.get("metrics_log", [])
+        saved_grid = state_data.get("grid")
+        if saved_grid is not None and self.current_automaton is not None:
+            grid = np.asarray(saved_grid, dtype=int)
+            expected_shape = (
+                self.current_automaton.height,
+                self.current_automaton.width,
+            )
+            if grid.shape != expected_shape:
+                raise ValueError(
+                    f"Saved grid shape {grid.shape} does not match {expected_shape}"
+                )
+            self.current_automaton.grid = grid.copy()
+            self.reset_after_grid_replacement(grid)
+            self.generation = int(state_data.get("generation", 0))
+            self.metrics_log = state_data.get("metrics_log", [])

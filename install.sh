@@ -150,9 +150,13 @@ ensure_requirements_file() {
 }
 
 setup_virtualenv() {
-  if [[ ! -d "$VENV_DIR" ]]; then
-    log "Creating virtual environment at $VENV_DIR"
-    python3 -m venv "$VENV_DIR"
+  if [[ ! -x "$VENV_DIR/bin/python" || ! -f "$VENV_DIR/bin/activate" ]]; then
+    if [[ -d "$VENV_DIR" ]]; then
+      log "Repairing incomplete virtual environment at $VENV_DIR"
+    else
+      log "Creating virtual environment at $VENV_DIR"
+    fi
+    python3 -m venv --clear "$VENV_DIR"
   fi
 
   # shellcheck disable=SC1090
@@ -165,6 +169,9 @@ setup_virtualenv() {
 
   log "Installing Python requirements"
   python -m pip install -r "$REQUIREMENTS_FILE"
+
+  log "Installing LifeGrid in editable mode"
+  python -m pip install -e "$ROOT_DIR"
 }
 
 main() {

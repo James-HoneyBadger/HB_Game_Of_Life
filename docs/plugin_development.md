@@ -11,8 +11,8 @@ LifeGrid's plugin system lets you add new automaton modes without modifying the 
 Every plugin must implement three properties and one factory method:
 
 ```python
-from src.plugin_system import AutomatonPlugin
-from src.automata.base import CellularAutomaton
+from plugin_system import AutomatonPlugin
+from automata.base import CellularAutomaton
 import numpy as np
 from scipy.signal import convolve2d
 
@@ -110,9 +110,9 @@ The grid should be a 2D integer array of shape `(height, width)` where `0` means
 The included `plugins/day_and_night.py` implements B3678/S34678:
 
 ```python
-from src.plugin_system import AutomatonPlugin
-from src.automata.lifelike import LifeLikeAutomaton
-from src.automata.base import CellularAutomaton
+from plugin_system import AutomatonPlugin
+from automata.lifelike import LifeLikeAutomaton
+from automata.base import CellularAutomaton
 
 
 class DayAndNightPlugin(AutomatonPlugin):

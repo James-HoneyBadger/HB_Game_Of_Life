@@ -87,6 +87,21 @@ else:
     # Fallback if load failed
     PATTERN_DATA["Conway's Game of Life"] = {}
 
+# Add scenario presets as built-in Conway patterns for consistent UI discovery.
+for name, description in {
+    "blinker": "Scenario preset: a period-2 oscillator.",
+    "glider": "Scenario preset: a small diagonal spaceship.",
+    "toad": "Scenario preset: a period-2 oscillator.",
+    "beacon": "Scenario preset: a period-2 oscillator.",
+    "lwss": "Scenario preset: a lightweight spaceship.",
+    "exploder": "Scenario preset: a compact explosive pattern.",
+    "acorn": "Scenario preset: a sparse methuselah.",
+    "pulsar": "Scenario preset: a large oscillator.",
+    "r-pentomino": "Scenario preset: a famous chaotic methuselah.",
+    "glider-gun": "Scenario preset: a pattern-producing spaceship factory.",
+}.items():
+    PATTERN_DATA["Conway's Game of Life"].setdefault(name, ([], description))
+
 # Add Random Soup to Conway manually since it's procedural
 PATTERN_DATA["Conway's Game of Life"]["Random Soup"] = (
     [],

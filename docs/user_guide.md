@@ -8,8 +8,8 @@ This guide covers everyday use of LifeGrid's GUI, drawing tools, simulation cont
 
 ```bash
 python src/main.py
-# or
-make run
+# or, after installation
+lifegrid-gui
 ```
 
 The main window opens with a grid canvas, toolbar, sidebar, and status bar.
@@ -206,4 +206,10 @@ See [CLI Reference](cli_reference.md) for all options.
 
 ## Settings Persistence
 
-LifeGrid saves your preferences (window size, grid dimensions, theme, speed, etc.) to `settings.json` in the project root. Settings are loaded automatically on startup.
+LifeGrid saves your preferences (window size, grid dimensions, theme, speed,
+boundary mode, etc.) to `settings.json` in the project root. Settings are
+loaded automatically on startup.
+
+GUI state saves include the active raw grid, generation, display settings, and
+metric history. A saved grid must match the active automaton dimensions when
+loaded.

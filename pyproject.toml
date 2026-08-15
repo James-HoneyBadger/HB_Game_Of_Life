@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lifegrid"
-version = "3.1.0"
-description = "An extensible cellular automaton simulator with GUI, export features, and plugin support"
+version = "4.0.0"
+description = "A fully featured cellular automaton simulator with CLI, GUI, API, exports, plugins, and snapshot tooling"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -82,17 +82,27 @@ Repository = "https://github.com/James-HoneyBadger/LifeGrid"
 Changelog = "https://github.com/James-HoneyBadger/LifeGrid/releases"
 
 [project.scripts]
-lifegrid = "src.main:main"
+lifegrid = "cli:main"
+lifegrid-gui = "main:main"
 
 [tool.setuptools]
-packages = [
-    "lifegrid",
-    "lifegrid.automata",
-    "lifegrid.gui",
-    "lifegrid.core",
-    "lifegrid.advanced",
-    "lifegrid.performance",
+package-dir = {"" = "src"}
+include-package-data = true
+py-modules = [
+    "autosave_manager",
+    "cli",
+    "config_manager",
+    "export_manager",
+    "main",
+    "pattern_browser",
+    "patterns",
+    "plugin_system",
+    "ui_enhancements",
+    "version",
 ]
 
-[tool.setuptools.package-dir]
-lifegrid = "src"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+data = ["*.json"]

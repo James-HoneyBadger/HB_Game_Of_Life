@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from core.boundary import roll_with_boundary
 from .base import CellularAutomaton
 
 
@@ -23,22 +24,20 @@ class HexagonalGameOfLife(CellularAutomaton):
         grid = self.grid
 
         # Directional shifts
-        # Note: np.roll wraps around, providing toroidal topology
-
         # Horizontal neighbors (always the same)
         # Left: (y, x-1), Right: (y, x+1)
-        left = np.roll(grid, 1, axis=1)
-        right = np.roll(grid, -1, axis=1)
+        left = roll_with_boundary(grid, 1, axis=1, boundary=self.boundary_mode)
+        right = roll_with_boundary(grid, -1, axis=1, boundary=self.boundary_mode)
 
         # Vertical/Diagonal shifts
-        up = np.roll(grid, 1, axis=0)
-        down = np.roll(grid, -1, axis=0)
+        up = roll_with_boundary(grid, 1, axis=0, boundary=self.boundary_mode)
+        down = roll_with_boundary(grid, -1, axis=0, boundary=self.boundary_mode)
 
         # Shifts combined with horizontal rolls
-        up_left = np.roll(up, 1, axis=1)
-        up_right = np.roll(up, -1, axis=1)
-        down_left = np.roll(down, 1, axis=1)
-        down_right = np.roll(down, -1, axis=1)
+        up_left = roll_with_boundary(up, 1, axis=1, boundary=self.boundary_mode)
+        up_right = roll_with_boundary(up, -1, axis=1, boundary=self.boundary_mode)
+        down_left = roll_with_boundary(down, 1, axis=1, boundary=self.boundary_mode)
+        down_right = roll_with_boundary(down, -1, axis=1, boundary=self.boundary_mode)
 
         # Neighbors for EVEN rows (y=0, 2, ...):
         # Connect to: Left, Right, Up-Left, Up, Down-Left, Down
@@ -78,7 +77,11 @@ class HexagonalGameOfLife(CellularAutomaton):
         self.reset()
         if pattern_name == "Random Soup":
             self._add_random_soup()
+        elif pattern_name != "Empty":
+            raise ValueError(
+                f"Unsupported pattern for HexagonalGameOfLife: {pattern_name}"
+            )
 
     def _add_random_soup(self) -> None:
-        random_mask = np.random.random(self.grid.shape) < 0.15
+        random_mask = self.rng.random(self.grid.shape) < 0.15
         self.grid[random_mask] = 1

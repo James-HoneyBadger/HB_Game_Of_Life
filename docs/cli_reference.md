@@ -14,14 +14,25 @@ python src/cli.py [OPTIONS]
 |------|-------|------|---------|-------------|
 | `--mode` | `-m` | string | `conway` | Automaton mode (see aliases below) |
 | `--rule` | | string | | Custom B/S rule string (e.g., `B36/S23`). Overrides `--mode`. |
-| `--width` | `-W` | int | 64 | Grid width |
-| `--height` | `-H` | int | 64 | Grid height |
+| `--width` | `-W` | int | 100 | Grid width |
+| `--height` | `-H` | int | 100 | Grid height |
 | `--steps` | `-n` | int | 100 | Number of generations to simulate |
+| `--pattern` | `-p` | string | `Random Soup` | Pattern name to load |
+| `--scenario` | | string | | Named preset scenario such as `blinker`, `glider`, or `exploder` |
+| `--boundary` | | string | `wrap` | Boundary mode: `wrap`, `fixed`, or `reflect` |
+| `--seed` | | int | | Seed NumPy randomness for reproducible procedural patterns |
 | `--cell-size` | | int | 4 | Cell size in pixels (for image/video export) |
 | `--export` | `-o` | path | | Export file path. Format determined by extension. |
+| `--snapshot` | | path | | Save a versioned replayable simulator snapshot. |
+| `--load-snapshot` | | path | | Resume from a versioned simulator snapshot. |
 | `--fps` | | int | 10 | Frames per second (GIF, MP4, WebM) |
 | `--snapshot-every` | | int | | Save a numbered PNG every N generations |
 | `--quiet` | `-q` | flag | | Suppress progress output |
+| `--diagnostics` | | flag | | Print environment and resource diagnostics, then exit |
+| `--stop-on-cycle` | | flag | | Stop early when a repeated grid state is detected |
+| `--max-cycle-states` | | int | 10000 | Maximum retained cycle fingerprints |
+| `--list-modes` | | flag | | List canonical modes and aliases, then exit |
+| `--list-patterns` | | flag | | List patterns for `--mode`, then exit |
 
 ## Mode Aliases
 
@@ -37,9 +48,13 @@ python src/cli.py [OPTIONS]
 | `generations` | Generations |
 | `hexagonal` | Hexagonal Life |
 
+Plugins in the project `plugins/` directory are loaded automatically, so a
+plugin's canonical name can also be passed to `--mode`.
+
 ## Export Formats
 
-The `--export` flag determines the output format by file extension:
+The `--export` flag determines the output format by file extension. Missing
+parent directories are created automatically:
 
 | Extension | Output |
 |-----------|--------|
@@ -48,7 +63,7 @@ The `--export` flag determines the output format by file extension:
 | `.mp4` | MP4 video |
 | `.webm` | WebM video |
 | `.csv` | CSV with per-generation statistics (generation, population, density) |
-| `.json` | JSON grid state of the final generation |
+| `.json` | Final grid state, run metadata, and metrics summary |
 
 ## Examples
 
@@ -57,6 +72,15 @@ The `--export` flag determines the output format by file extension:
 ```bash
 python src/cli.py --mode conway --steps 500
 ```
+
+### Start from a named scenario preset
+
+```bash
+python src/cli.py --mode conway --scenario blinker --steps 100 --quiet
+python src/cli.py --mode conway --scenario glider --width 120 --height 120 --steps 200
+```
+
+The built-in scenario presets currently include `blinker`, `glider`, `toad`, `beacon`, `lwss`, `exploder`, and `random`.
 
 ### Export an animated GIF
 

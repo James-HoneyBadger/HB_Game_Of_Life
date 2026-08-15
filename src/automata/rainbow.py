@@ -5,13 +5,15 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy import signal
 
+from core.boundary import convolve_with_boundary
 from .base import CellularAutomaton
 
 
 class RainbowGame(CellularAutomaton):
     """Rainbow Game - six color cellular automaton."""
+
+    STATE_COUNT = 7
 
     def __init__(self, width: int, height: int) -> None:
         self.grid = np.zeros((height, width), dtype=int)
@@ -24,6 +26,8 @@ class RainbowGame(CellularAutomaton):
     def load_pattern(self, pattern_name: str) -> None:
         """Populate the grid with a named preset."""
         self.grid = np.zeros((self.height, self.width), dtype=int)
+        if pattern_name == "Empty":
+            return
         center_x = self.width // 2
         center_y = self.height // 2
 
@@ -31,6 +35,8 @@ class RainbowGame(CellularAutomaton):
             self._add_rainbow_mix(center_x, center_y)
         elif pattern_name == "Random Soup":
             self._add_random_soup()
+        else:
+            raise ValueError(f"Unsupported pattern for RainbowGame: {pattern_name}")
 
     def _add_rainbow_mix(self, center_x: int, center_y: int) -> None:
         patterns = [
@@ -69,24 +75,18 @@ class RainbowGame(CellularAutomaton):
                     self.grid[y, x] = state
 
     def _add_random_soup(self) -> None:
-        random_mask = np.random.random(self.grid.shape) < 0.15
-        random_states = np.random.randint(1, 7, size=self.grid.shape)
+        random_mask = self.rng.random(self.grid.shape) < 0.15
+        random_states = self.rng.integers(1, 7, size=self.grid.shape)
         self.grid[random_mask] = random_states[random_mask]
 
     def step(self) -> None:
         kernel = np.array([[1, 1, 1], [1, 0, 1], [1, 1, 1]])
         alive_mask = self.grid > 0
-        neighbor_count = signal.convolve2d(
-            alive_mask.astype(int),
-            kernel,
-            mode="same",
-            boundary="wrap",
+        neighbor_count = convolve_with_boundary(
+            alive_mask.astype(int), kernel, self.boundary_mode
         )
-        color_sum = signal.convolve2d(
-            self.grid,
-            kernel,
-            mode="same",
-            boundary="wrap",
+        color_sum = convolve_with_boundary(
+            self.grid, kernel, self.boundary_mode
         )
 
         neighbors_2_or_3 = (neighbor_count == 2) | (neighbor_count == 3)

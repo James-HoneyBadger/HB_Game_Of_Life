@@ -9,10 +9,15 @@ Thanks for your interest in contributing! This guide covers setup, workflow, and
 ```bash
 git clone https://github.com/James-HoneyBadger/LifeGrid.git
 cd LifeGrid
-make install-dev
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev,docs,export]"
 ```
 
 This installs all dependencies (runtime, dev, docs, export) in editable mode.
+
+New public imports should use the Version 4 namespace, for example
+`from lifegrid.core.simulator import Simulator`. The older top-level imports
+remain implementation details during the migration.
 
 ### Prerequisites
 
@@ -32,9 +37,9 @@ This installs all dependencies (runtime, dev, docs, export) in editable mode.
 3. **Make your changes** — keep commits focused and well-described.
 4. **Run the checks** before submitting:
    ```bash
-   make lint       # flake8 + pylint
-   make typecheck  # mypy
-   make test       # pytest (71 tests)
+    .venv/bin/python -m pytest -q
+    .venv/bin/python -m py_compile src/cli.py src/core/simulator.py
+    git diff --check
    ```
 5. **Open a pull request** against `master`.
 
@@ -42,10 +47,10 @@ This installs all dependencies (runtime, dev, docs, export) in editable mode.
 
 ## Code Standards
 
-- **Style**: PEP 8. Use `make format` (black + isort) to auto-format.
-- **Type hints**: All public functions and methods should have type annotations. Run `make typecheck` to verify.
+- **Style**: PEP 8. Use the configured Black and isort tools when making formatting changes.
+- **Type hints**: All public functions and methods should have type annotations. Run mypy when changing typed public APIs.
 - **Linting**: Zero warnings from `flake8` and zero errors from `pylint --errors-only`.
-- **Tests**: New features should include tests in `tests/`. Run `make test`.
+- **Tests**: New features should include tests in `tests/`. Run `.venv/bin/python -m pytest -q`.
 - **Docstrings**: Use Google-style docstrings for public APIs.
 
 ---
@@ -57,8 +62,8 @@ This installs all dependencies (runtime, dev, docs, export) in editable mode.
 Create a `.py` file in `plugins/` that subclasses `AutomatonPlugin`:
 
 ```python
-from src.plugin_system import AutomatonPlugin
-from src.automata.base import CellularAutomaton
+from plugin_system import AutomatonPlugin
+from automata.base import CellularAutomaton
 
 class MyPlugin(AutomatonPlugin):
     @property
@@ -85,9 +90,25 @@ Plugins are auto-discovered at startup — no code changes to the core required.
 1. Create a new file in `src/automata/` subclassing `CellularAutomaton`.
 2. Export it from `src/automata/__init__.py`.
 3. Register it in `src/gui/config.py` (`MODE_FACTORIES` and `MODE_PATTERNS`).
-4. Add patterns to `src/patterns.py`.
+4. Add patterns to `src/data/patterns.json` or the appropriate automaton's procedural loader.
 5. Add a CLI alias in `src/cli.py`.
 6. Write tests.
+
+## Release Checklist
+
+For a release such as `3.2.1`:
+
+1. Update the version in `src/version.py` and `[project].version` in `pyproject.toml`.
+2. Update the README badge and the technical reference version.
+3. Add a dated entry to `CHANGELOG.md`.
+4. Run the full test suite, package build, and `git diff --check`:
+    ```bash
+    .venv/bin/python -m pytest -q
+    .venv/bin/python -m pip wheel --no-deps --no-build-isolation --wheel-dir /tmp/lifegrid-wheel .
+    git diff --check
+    ```
+5. Inspect the wheel for `data/patterns.json`.
+6. Create the release commit and version tag only after the checks pass.
 
 ---
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from automata import CellularAutomaton
+from core.registry import ModeDescriptor, register_mode
 
 
 class AutomatonPlugin(ABC):
@@ -18,6 +19,12 @@ class AutomatonPlugin(ABC):
 
     Subclass this to create custom automata that can be loaded at runtime.
     """
+    api_version = 1
+    capabilities: dict[str, bool] = {
+        "patterns": True,
+        "boundaries": True,
+        "multi_state": False,
+    }
 
     @property
     @abstractmethod
@@ -61,7 +68,36 @@ class PluginManager:
         Args:
             plugin: AutomatonPlugin instance to register
         """
+        self.validate_plugin(plugin)
+        if plugin.name in self.plugins and self.plugins[plugin.name] is not plugin:
+            raise ValueError(f"Plugin name already registered: {plugin.name}")
         self.plugins[plugin.name] = plugin
+        register_mode(
+            ModeDescriptor(
+                name=plugin.name,
+                description=plugin.description,
+                factory=plugin.create_automaton,
+                aliases=(plugin.name.lower(),),
+                state_count=None,
+                source="plugin",
+                api_version=int(getattr(plugin, "api_version", 1)),
+                capabilities=dict(getattr(plugin, "capabilities", {})),
+            )
+        )
+
+    @staticmethod
+    def validate_plugin(plugin: AutomatonPlugin) -> None:
+        """Validate plugin metadata before registry registration."""
+        if not isinstance(plugin.name, str) or not plugin.name.strip():
+            raise ValueError("Plugin name must be a non-empty string")
+        if not isinstance(plugin.description, str):
+            raise ValueError("Plugin description must be a string")
+        if not isinstance(plugin.version, str) or not plugin.version.strip():
+            raise ValueError("Plugin version must be a non-empty string")
+        if not isinstance(plugin.api_version, int) or plugin.api_version < 1:
+            raise ValueError("Plugin api_version must be a positive integer")
+        if not isinstance(plugin.capabilities, dict):
+            raise ValueError("Plugin capabilities must be a dictionary")
 
     def load_plugins_from_directory(self, directory: str) -> int:
         """Load all plugins from a directory.
@@ -74,6 +110,10 @@ class PluginManager:
         """
         plugin_dir = Path(directory)
         if not plugin_dir.exists():
+            return 0
+
+        plugin_dir = plugin_dir.resolve()
+        if plugin_dir in self.plugin_paths:
             return 0
 
         loaded_count = 0

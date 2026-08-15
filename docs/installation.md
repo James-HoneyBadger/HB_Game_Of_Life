@@ -32,7 +32,7 @@ pip install -r requirements.txt
 For contributors who need linting, formatting, type checking, and doc building:
 
 ```bash
-make install-dev
+pip install -e ".[dev,docs,export]"
 ```
 
 This runs `pip install -e ".[dev,docs,export]"` which installs:
@@ -61,7 +61,7 @@ print(is_gpu_available())  # True if CuPy + CUDA are working
 ## Building a Standalone Executable
 
 ```bash
-make executable
+pyinstaller lifegrid.spec
 ```
 
 This uses PyInstaller with the included `lifegrid.spec` to produce a single distributable binary.
@@ -70,11 +70,14 @@ This uses PyInstaller with the included `lifegrid.spec` to produce a single dist
 
 ```bash
 # Launch the GUI
-python src/main.py
+PYTHONPATH=src python src/main.py
+
+# Or use the installed entry point
+lifegrid-gui
 
 # Run the test suite
-make test
+python -m pytest -q
 
 # Run a quick CLI simulation
-python src/cli.py --mode conway --steps 100 --quiet
+lifegrid --mode conway --steps 100 --quiet
 ```

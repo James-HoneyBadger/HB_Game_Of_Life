@@ -39,6 +39,7 @@ class AppConfig:
     speed: int = 50
     automaton_mode: str = "Conway's Game of Life"
     default_pattern: str = "Random Soup"
+    boundary_mode: str = "wrap"
 
     # Advanced Simulation State
     custom_birth: str = "3"
