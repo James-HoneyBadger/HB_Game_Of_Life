@@ -108,6 +108,22 @@ PATTERN_DATA["Conway's Game of Life"]["Random Soup"] = (
     "Random 15% fill to explore emergent structures",
 )
 
+# Register user-facing aliases used by the GUI and CLI so display names like
+# "Glider" and "Glider Gun" resolve to the canonical lowercase scenario keys.
+conway_patterns = PATTERN_DATA["Conway's Game of Life"]
+for name, info in list(conway_patterns.items()):
+    aliases = {
+        name,
+        name.lower(),
+        name.lower().replace("-", " "),
+        name.title(),
+        name.replace("-", " ").title(),
+        name.replace("-", " ").capitalize(),
+        name.replace(" ", "-").lower(),
+    }
+    for alias in aliases:
+        conway_patterns.setdefault(alias, info)
+
 
 def get_pattern_coords(mode: str, pattern_name: str) -> List[Tuple[int, int]]:
     """Get the coordinates for a named pattern."""

@@ -71,11 +71,30 @@ def get_scenario_names() -> List[str]:
     return list(SCENARIOS.keys())
 
 
-def _normalize_scenario_name(name: str) -> str:
-    """Normalize a scenario name to its canonical key."""
-    normalized = name.strip().lower().replace(" ", "-")
-    if normalized in SCENARIOS:
-        return normalized
+def resolve_scenario_name(name: str) -> str:
+    """Resolve a user-facing scenario name to the canonical internal key."""
+    if not isinstance(name, str):
+        raise ValueError(f"Scenario name must be a string, got {type(name).__name__}")
+
+    stripped = name.strip()
+    if not stripped:
+        raise ValueError("Scenario name cannot be empty")
+
+    candidates = {
+        stripped,
+        stripped.lower(),
+        stripped.lower().replace("_", "-"),
+        stripped.lower().replace(" ", "-"),
+        stripped.lower().replace(" ", "-").replace("--", "-"),
+        stripped.lower().replace("-", " "),
+        stripped.title(),
+        stripped.replace("-", " ").title(),
+        stripped.replace("_", " ").title(),
+    }
+    for candidate in candidates:
+        if candidate in SCENARIOS:
+            return candidate
+
     aliases = {
         "lightweight-spaceship": "lwss",
         "lightweight-spaceships": "lwss",
@@ -87,9 +106,28 @@ def _normalize_scenario_name(name: str) -> str:
         "glider-gun-ship": "gosper-glider-gun",
         "pi-heptomino": "pi-heptomino",
     }
+    normalized = stripped.lower().replace("_", "-").replace(" ", "-")
     if normalized in aliases:
         return aliases[normalized]
+
+    for key in SCENARIOS:
+        key_variants = {
+            key,
+            key.lower(),
+            key.lower().replace("-", " "),
+            key.lower().replace(" ", "-"),
+            key.title(),
+            key.replace("-", " ").title(),
+        }
+        if normalized in {variant.lower().replace("_", "-").replace(" ", "-") for variant in key_variants}:
+            return key
+
     raise ValueError(f"Unknown scenario '{name}'. Available: {', '.join(get_scenario_names())}")
+
+
+def _normalize_scenario_name(name: str) -> str:
+    """Normalize a scenario name to its canonical key."""
+    return resolve_scenario_name(name)
 
 
 def _center_pattern(pattern: Iterable[Tuple[int, int]], width: int, height: int) -> Tuple[int, int]:

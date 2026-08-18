@@ -8,7 +8,7 @@ import pytest
 
 from advanced.rle_format import RLEEncoder, RLEParser
 from api.app import CreateSessionRequest, StepRequest, create_session
-from automata import HexagonalGameOfLife, LifeLikeAutomaton, compare_bs_rules
+from automata import ConwayGameOfLife, HexagonalGameOfLife, LifeLikeAutomaton, compare_bs_rules
 from cli import main
 from core.config import SimulatorConfig
 from core.boundary import BoundaryMode, convolve_with_boundary
@@ -26,6 +26,15 @@ from gui.new_features import BookmarkManager
 
 def test_conway_pattern_data_is_available() -> None:
     assert "Glider" in PATTERN_DATA["Conway's Game of Life"]
+
+
+def test_conway_accepts_gui_display_names_for_scenarios() -> None:
+    automaton = ConwayGameOfLife(12, 12)
+    automaton.load_pattern("Glider")
+    assert automaton.get_grid().sum() == 5
+
+    automaton.load_pattern("Glider Gun")
+    assert automaton.get_grid().sum() > 0
 
 
 def test_scenario_aliases_and_extended_catalog_are_available() -> None:

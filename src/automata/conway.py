@@ -8,7 +8,7 @@ import numpy as np
 
 from core.boundary import convolve_with_boundary
 from patterns import PATTERN_DATA
-from scenarios import build_scenario, get_scenario_names
+from scenarios import build_scenario, get_scenario_names, resolve_scenario_name
 
 from .base import CellularAutomaton
 
@@ -36,16 +36,24 @@ class ConwayGameOfLife(CellularAutomaton):
             self._add_random_soup()
             return
 
-        if pattern_name in get_scenario_names():
-            self.grid = build_scenario(pattern_name, self.width, self.height)
+        try:
+            resolved_name = resolve_scenario_name(pattern_name)
+        except ValueError:
+            resolved_name = None
+        if resolved_name is not None and resolved_name in get_scenario_names():
+            self.grid = build_scenario(resolved_name, self.width, self.height)
             return
 
         # Load from JSON-backed pattern data
         try:
             pattern_data_dict = PATTERN_DATA.get("Conway's Game of Life", {})
-
-            if pattern_name in pattern_data_dict:
-                points, _ = pattern_data_dict[pattern_name]
+            match_name = None
+            for candidate in (pattern_name, pattern_name.lower(), pattern_name.title(), pattern_name.replace("-", " ").title(), pattern_name.replace(" ", "-").lower()):
+                if candidate in pattern_data_dict:
+                    match_name = candidate
+                    break
+            if match_name is not None:
+                points, _ = pattern_data_dict[match_name]
                 if points:
                     center_x = self.width // 2
                     center_y = self.height // 2

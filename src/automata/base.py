@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from core.boundary import BoundaryMode
-from scenarios import build_scenario, get_scenario_names
+from scenarios import build_scenario, get_scenario_names, resolve_scenario_name
 
 
 class CellularAutomaton(ABC):
@@ -56,8 +56,12 @@ class CellularAutomaton(ABC):
             random_mask = self.rng.random(self.grid.shape) < 0.15
             self.grid[random_mask] = 1
             return
-        if pattern_name in get_scenario_names():
-            self.grid = build_scenario(pattern_name, self.width, self.height)
+        try:
+            resolved_name = resolve_scenario_name(pattern_name)
+        except ValueError:
+            resolved_name = None
+        if resolved_name is not None and resolved_name in get_scenario_names():
+            self.grid = build_scenario(resolved_name, self.width, self.height)
             return
         raise ValueError(f"Unsupported pattern for {type(self).__name__}: {pattern_name}")
 
